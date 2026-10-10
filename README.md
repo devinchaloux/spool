@@ -1,13 +1,15 @@
-# mei-piano-roll
+# Spool
 
-🎹 A piano roll player for MEI (Music Encoding Initiative) files. It reads an
-MEI file in the browser, draws its notes as a piano roll, plays them with a
-choice of synths or sampled instruments, makes still images of any bars, and
-lists anything in the file it could not show faithfully.
+🎹 A piano roll player for MEI (Music Encoding Initiative) files, packaged
+for npm as `mei-piano-roll`. It reads an MEI file in the browser, draws its
+notes as a piano roll, plays them with a choice of synths or sampled
+instruments, makes still images of any bars, and lists anything in the file it
+could not show faithfully.
 
 ## Status
 
-**2026-10-08:** the first reader works. It handles short, cleanly encoded files.
+**2026-10-10:** the hosted demo is a public alpha, and plays the sampled
+instruments from its own copy of the recordings. The first reader works. It handles short, cleanly encoded files.
 On the MEI project's 617 sample files it reads everything without crashing, and
 144 read with nothing left out; the rest report a gap (repeats, mid-piece
 changes, notes without a length, a few ties it can't follow). Tied notes sound
@@ -43,6 +45,10 @@ pull request gets its own preview link. To build it yourself:
 npm run build:demo   # static site in dist-demo/
 ```
 
+The build first downloads the sampled instruments (about 45 MB, once) into
+`demo/public/sounds/`, which git ignores, so the hosted demo plays them from
+its own address (`npm run sounds` does only that step).
+
 ## Use it in a React page
 
 ```tsx
@@ -62,6 +68,7 @@ import { MeiPianoRoll } from 'mei-piano-roll'
 | `header` | Show the title line above the full player; default `true` |
 | `sound` | Starting sound for every part, by id (see `SOUNDS`); default each part's nearest sound to the instrument the file names, else the square lead |
 | `partSounds` | Starting sound for each part, by id, in score order; takes precedence over `sound` |
+| `samplesUrl` | Where the sampled instruments are hosted: a folder of FluidR3 `<instrument>-mp3.js` files, ending in `/`; default the volunteer-run site smplr uses |
 | `onPartSoundsChange` | Called with every part's sound whenever the listener changes one, so a page can keep the choice |
 | `theme` | `"studio"` (default), `"paper"`, `"neon"`, `"ink"`, or your own colors |
 | `accent` | Note color (the first part's, with several); without it, the page's `--accent` CSS variable, then the theme's |

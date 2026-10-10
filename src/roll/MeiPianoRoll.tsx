@@ -60,6 +60,12 @@ export interface MeiPianoRollProps {
    * `sound` for the parts it covers.
    */
   partSounds?: string[];
+  /**
+   * Where the sampled instruments' recordings are hosted: a folder of
+   * `<instrument>-mp3.js` files from the FluidR3 set, ending in "/". Default:
+   * the volunteer-run site smplr uses.
+   */
+  samplesUrl?: string;
   /** Called with every part's sound, in score order, whenever the listener changes one. */
   onPartSoundsChange?: (ids: string[]) => void;
   /**
@@ -249,7 +255,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
   // after a click.
   function ensureEngine(): SoundEngine {
     if (!engineRef.current) {
-      const engine = new SoundEngine();
+      const engine = new SoundEngine(props.samplesUrl);
       const transport = new Transport({
         now: () => engine.ctx.currentTime,
         play: (midi, when, dur, part) => engine.play(midi, when, dur, part),

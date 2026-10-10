@@ -49,7 +49,12 @@ export class SoundEngine {
   private master: GainNode
   private channels: Channel[] = []
 
-  constructor() {
+  /**
+   * `samplesUrl`: a folder holding the FluidR3 recordings as `<instrument>-mp3.js`,
+   * ending in "/". Without it, they come from the volunteer-run site smplr
+   * knows (gleitz.github.io), which a page can't count on staying up.
+   */
+  constructor(private samplesUrl?: string) {
     const AC: typeof AudioContext =
       window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
     this.ctx = new AC()
@@ -169,7 +174,10 @@ export class SoundEngine {
         const { Soundfont } = await import('smplr')
         const out = this.ctx.createGain()
         out.connect(ch.out)
-        const inst = Soundfont(this.ctx, { instrument: name, kit: 'FluidR3_GM', destination: out }) as unknown as SampledInstrument
+        // MP3 only from a hosted copy: every browser decodes it, and one format
+        // halves what the host stores.
+        const source = this.samplesUrl ? { instrumentUrl: `${this.samplesUrl}${name}-mp3.js` } : { instrument: name, kit: 'FluidR3_GM' }
+        const inst = Soundfont(this.ctx, { ...source, destination: out }) as unknown as SampledInstrument
         await inst.load
         return { inst, out }
       })()

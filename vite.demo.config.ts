@@ -6,5 +6,8 @@ import react from '@vitejs/plugin-react'
 // other sites install.
 export default defineConfig({
   plugins: [react()],
+  // The demo's own public folder, not the default one at the root, so the
+  // library build never copies the sampled instruments into the package.
+  publicDir: 'demo/public',
   build: { outDir: 'dist-demo' },
 })

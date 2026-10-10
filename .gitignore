@@ -154,3 +154,7 @@ fixtures/
 
 # The demo site build (npm run build:demo), deployed by Vercel
 dist-demo/
+
+# The sampled instruments for the hosted demo: downloaded by `npm run sounds`,
+# never committed (docs/decisions.md, 2026-10-10)
+demo/public/sounds/
