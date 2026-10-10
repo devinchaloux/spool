@@ -74,6 +74,12 @@ export interface MeiPianoRollProps {
    * page of text; it opens into the full player on request.
    */
   variant?: "full" | "compact";
+  /**
+   * Compact player only: an address the expand button opens in a new tab,
+   * instead of opening the full player in place. For a player in a small
+   * frame, where the full player wouldn't fit.
+   */
+  openHref?: string;
   /** Show the title line above the full player. Default true. */
   header?: boolean;
   className?: string;
@@ -903,9 +909,15 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
           {!multi && soundSelect(0)}
           <span className="mpr-meta">{bpm} BPM</span>
           {notShown}
-          <button className="mpr-icon" onClick={() => setExpanded(true)} title="Open the full player" aria-label="Open the full player">
-            <Icon name="expand" />
-          </button>
+          {props.openHref ? (
+            <a className="mpr-icon" href={props.openHref} target="_blank" rel="noopener" title="Open the full player" aria-label="Open the full player">
+              <Icon name="expand" />
+            </a>
+          ) : (
+            <button className="mpr-icon" onClick={() => setExpanded(true)} title="Open the full player" aria-label="Open the full player">
+              <Icon name="expand" />
+            </button>
+          )}
         </div>
       )}
 
@@ -994,7 +1006,7 @@ const CSS = `
 .mpr-foot { gap: 12px; padding: 8px 12px; }
 .mpr-foot .mpr-title { font-size: 13px; }
 .mpr-foot .mpr-composer { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.mpr-icon { appearance: none; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid var(--mpr-border); background: transparent; color: var(--mpr-text); cursor: pointer; padding: 0; }
+.mpr-icon { appearance: none; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid var(--mpr-border); background: transparent; color: var(--mpr-text); cursor: pointer; padding: 0; box-sizing: border-box; text-decoration: none; }
 .mpr-foot .mpr-icon { width: 30px; height: 30px; }
 .mpr-icon:hover:not(:disabled) { border-color: var(--mpr-muted); }
 .mpr-icon[aria-pressed="true"] { border-color: var(--mpr-accent); color: var(--mpr-accent); background: color-mix(in srgb, var(--mpr-accent) 14%, transparent); }

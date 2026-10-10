@@ -8,8 +8,11 @@ could not show faithfully.
 
 ## Status
 
-**2026-10-10:** the hosted demo is a public alpha, and plays the sampled
-instruments from its own copy of the recordings. The first reader works. It handles short, cleanly encoded files.
+**2026-10-10:** Spool is a public alpha at https://spool.devinchaloux.com. It
+opens a file from your computer or from a link, shares a file as a link or as
+a player for any web page, and plays the sampled instruments from its own copy
+of the recordings. The first reader works. It handles short, cleanly encoded
+files.
 On the MEI project's 617 sample files it reads everything without crashing, and
 144 read with nothing left out; the rest report a gap (repeats, mid-piece
 changes, notes without a length, a few ties it can't follow). Tied notes sound
@@ -30,13 +33,13 @@ npm install
 npm run dev
 ```
 
-Open the address it prints. The demo shows a built-in two-part example; open any `.mei`
-file, or drop one on the page. The file stays in your browser. Three tabs show
-the **full player**, the **compact player** as it sits in an essay, and the
+Open the address it prints. The page shows a built-in two-part example; open
+any `.mei` file, drop one on the page, or open one from a link. A file from
+your computer stays in your browser. Three tabs show the **full player**,
+**Share** (a link to the file, or a small player for a web page) and the
 **image maker**, which saves any bars as SVG or PNG. The side panel sets the
-theme and each part's color for all three. Sounds chosen in either player
-carry over to the other, and the compact player's tab gives the code for an
-embed set up that way (**Copy code**).
+theme and each part's color for all three, and sounds chosen in one player
+carry over to the other.
 
 The same demo is hosted on Vercel (`vercel.json`): `main` deploys it, and each
 pull request gets its own preview link. To build it yourself:
@@ -48,6 +51,34 @@ npm run build:demo   # static site in dist-demo/
 The build first downloads the sampled instruments (about 45 MB, once) into
 `demo/public/sounds/`, which git ignores, so the hosted demo plays them from
 its own address (`npm run sounds` does only that step).
+
+## Share a file, or put it in a web page
+
+Spool keeps nothing on a server, so sharing means putting the MEI file online
+first, somewhere other sites may read it: a file in a GitHub repository, a
+Dropbox share link, or your own site with cross-origin reads allowed
+(`Access-Control-Allow-Origin`). Paste its address into **Share**, which gives:
+
+- **a link** that opens the file in Spool with your theme, colors and sounds;
+- **an embed**, an iframe for any web page, blog or course site that allows
+  iframes:
+
+```html
+<iframe src="https://spool.devinchaloux.com/embed?src=https://example.org/song.mei&theme=paper"
+  title="Song · Spool" width="100%" height="340" style="border: 0; border-radius: 10px"></iframe>
+```
+
+| Option | What it does |
+|---|---|
+| `src` | The file's address (required) |
+| `theme` | `studio` (default), `paper`, `neon` or `ink` |
+| `colors` | One color per part, as hex without `#`, comma-separated: `c00050,1f5fbf` |
+| `sounds` | One sound per part, by id (see `SOUNDS`), comma-separated: `piano,acid-bass` |
+
+The embed fills the iframe's height. Its expand button opens the file in
+Spool. Options are never renamed once published, so an embed keeps working.
+An embed chooses how the file is shown, not who can read it: anyone with the
+address can download the file.
 
 ## Use it in a React page
 
@@ -64,6 +95,7 @@ import { MeiPianoRoll } from 'mei-piano-roll'
 | Prop | What it does |
 |---|---|
 | `src` / `meiText` | The MEI file, by address or as text |
+| `openHref` | Compact player only: an address its expand button opens in a new tab, instead of opening the full player in place |
 | `variant` | `"full"` (default): the roll with its controls underneath. `"compact"`: a play button over the roll and a caption line with play/pause, the title and the composer; it opens into the full player |
 | `header` | Show the title line above the full player; default `true` |
 | `sound` | Starting sound for every part, by id (see `SOUNDS`); default each part's nearest sound to the instrument the file names, else the square lead |

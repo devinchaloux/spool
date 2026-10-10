@@ -9,5 +9,10 @@ export default defineConfig({
   // The demo's own public folder, not the default one at the root, so the
   // library build never copies the sampled instruments into the package.
   publicDir: 'demo/public',
-  build: { outDir: 'dist-demo' },
+  build: {
+    outDir: 'dist-demo',
+    // Two pages: the studio (index.html) and the player alone, for other
+    // sites to put in an iframe (embed.html, served at /embed).
+    rollupOptions: { input: { main: 'index.html', embed: 'embed.html' } },
+  },
 })

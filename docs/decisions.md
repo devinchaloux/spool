@@ -1,12 +1,13 @@
 # Decisions
 
-**Status (2026-10-10):** the hosted demo is a public alpha, and plays the
-sampled instruments from its own copy. The native reader works, and the player has a sound
+**Status (2026-10-10):** Spool is a public alpha that opens a file from a
+link and shares one as a link or an iframe embed, and plays the sampled
+instruments from its own copy. The native reader works, and the player has a sound
 picker, color themes, image export and several instruments in one roll, each
 with its own color and sound. Tied notes sound once and grace notes play
 before their beat. The composer and artist show when the file names them.
-**Next action:** annotations, then the second reader (Verovio) for any MEI
-file.
+**Next action:** the second reader (Verovio) for any MEI file; annotations
+once their list is settled.
 
 Each decision gets: date, the choice, the alternatives rejected, and why, so it
 isn't re-litigated later. Entries are binding until a later entry reverses
@@ -412,6 +413,9 @@ listeners change sounds, so those stay in the player.
 without a way to carry the choices over, every embed played the file's
 suggested sounds in the default colors.
 
+**Note (2026-10-10).** The embed's tab is now **Share**, and its code is an
+iframe anyone can paste, not React code; see "sharing a file by its address".
+
 ### 2026-10-08: the composer and artist, as the file names them
 
 **Choice.** The reader returns `composer` and a new `artist` (a performer or
@@ -475,6 +479,40 @@ live demo keeps its copy, and that copy is the place to move the files from
 **Still open.** The library's own default stays the volunteer site. Once the
 tool has a lasting address, the default could point at its copy, which would
 then need a cross-origin header so other sites can read it.
+
+### 2026-10-10: sharing a file by its address: a link, and an iframe embed
+
+**Choice.** Spool can open a file from its address (**Open from a link**, or
+`?src=` in Spool's own address), and **Share** turns a file that is online into
+two things: a link that opens it in Spool with the theme, colors and sounds
+chosen, and an iframe embed (`/embed`, the compact player alone) for any web
+page. Both name the file's address and the settings in the query (`src`,
+`theme`, `colors`, `sounds`); Spool stores nothing. A GitHub file page or a
+Dropbox share link is turned into the file's raw address. In the embed, the
+expand button opens the file in Spool in a new tab (`openHref`), and a light
+theme gets light chrome. Embed options are never renamed once published.
+
+**Rejected.**
+- *React code to paste,* as the embed's tab gave before: only a developer who
+  installs the package can use it, and nothing is on npm yet.
+- *A web component* (a script tag and a custom element): it reads the host
+  page's own files with no cross-origin setup, but many blog, course and site
+  builders strip scripts and allow iframes. It can come later.
+- *Uploading the file to Spool:* a server, storage and accounts for something a
+  link already does.
+
+**Why.** Spool is shared as a public tool for people who will mostly never
+install anything; an iframe works in nearly every page that allows embeds, and
+it is how Strata's embeds already work, so the two tools behave alike. The cost
+is that the file's host must let other sites read it, which GitHub and Dropbox
+do.
+
+### 2026-10-10: a "Report an issue" link
+
+**Choice.** The studio page's side panel links to the repository's new-issue
+form, for bugs and suggestions.
+
+**Why.** A public tool needs one obvious place for feedback.
 
 ## Open questions
 
