@@ -62,9 +62,8 @@ code.
 
 ## Working in this repo
 
-**Write everything as if the repo were public, and treat a push as a
-publication.** Anything pushed to any branch can be read and can't be taken
-back: a deleted branch stays reachable through pull-request refs, forks and
+**The repo is public: treat a push as a publication.** Anything pushed to any
+branch can be read and can't be taken back: a deleted branch stays reachable through pull-request refs, forks and
 clones.
 
 1. **Work on a branch and open a pull request into `main`.** Never push to
