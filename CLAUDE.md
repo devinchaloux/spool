@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Instructions for Claude Code in this repository. They apply to anyone working
-on mei-piano-roll with Claude; the maintainer's own session instructions load
+on Spool with Claude; the maintainer's own session instructions load
 from a private file through the import at the end.
 
 **Current state (2026-10-08):** the native reader and the player work,
@@ -14,9 +14,9 @@ second reader is not built.
 
 ## What this project is
 
-**mei-piano-roll** is a piano roll player for MEI (Music Encoding Initiative)
-files. It loads an MEI document, shows its notes as a piano roll, and plays
-them.
+**Spool** is a piano roll player for MEI (Music Encoding Initiative) files,
+packaged for npm as `mei-piano-roll`. It loads an MEI document, shows its
+notes as a piano roll, and plays them.
 
 The core design bets:
 - **MEI is the source of truth.** The roll is derived from the encoding; the

@@ -445,6 +445,8 @@ files, and on the sample files most still report a gap.
 **Note (2026-10-10).** The tool is named **Spool**, after the spool a piano
 roll is wound on, and is to be hosted at `spool.devinchaloux.com`. The package
 keeps the name `mei-piano-roll`, which says what it is to someone searching npm.
+The repository was renamed from `mei-piano-roll` to `spool` the same day; GitHub
+redirects the old address.
 
 ### 2026-10-10: the hosted demo plays the sampled instruments from its own copy
 
