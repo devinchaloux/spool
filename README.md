@@ -50,7 +50,8 @@ pull request gets its own preview link. To build it yourself:
 npm run build:demo   # static site in dist-demo/
 ```
 
-The build first downloads the sampled instruments (about 45 MB, once) into
+The build first downloads the sampled instruments (about 45 MB, once), with
+loop points that let a held note sustain past its three-second recording, into
 `demo/public/sounds/`, which git ignores, so the hosted demo plays them from
 its own address (`npm run sounds` does only that step).
 
@@ -102,7 +103,7 @@ import { MeiPianoRoll } from 'mei-piano-roll'
 | `header` | Show the title line above the full player; default `true` |
 | `sound` | Starting sound for every part, by id (see `SOUNDS`); default each part's nearest sound to the instrument the file names, else the square lead |
 | `partSounds` | Starting sound for each part, by id, in score order; takes precedence over `sound` |
-| `samplesUrl` | Where the sampled instruments are hosted: a folder of FluidR3 `<instrument>-mp3.js` files, ending in `/`; default the volunteer-run site smplr uses |
+| `samplesUrl` | Where the sampled instruments are hosted: a folder of FluidR3 `<instrument>-mp3.js` files, and optionally `<instrument>-loop.json` loop points so held notes sustain, ending in `/`; default the volunteer-run site smplr uses (no loop points) |
 | `onPartSoundsChange` | Called with every part's sound whenever the listener changes one, so a page can keep the choice |
 | `theme` | `"studio"` (default), `"paper"`, `"neon"`, `"ink"`, or your own colors |
 | `accent` | Note color (the first part's, with several); without it, the page's `--accent` CSS variable, then the theme's |

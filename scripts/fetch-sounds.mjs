@@ -7,9 +7,19 @@
 // about 45 MB of audio would otherwise stay in the history for good.
 //
 // Pinned to one commit, set in demo/sounds.json, which the demo reads too. The
-// folder is named after the commit, so a file at a given address never changes
-// and browsers may cache it for good (vercel.json). Bump the commit
-// deliberately: it changes what every listener hears.
+// folder is named after the commit (and the loop points' commit), so a file at
+// a given address never changes and browsers may cache it for good
+// (vercel.json). Bump a commit deliberately: it changes what every listener
+// hears.
+//
+// Each recording lasts about three seconds, so a note held longer would go
+// silent before it ends. Loop points (where in a recording to repeat while a
+// note is held), worked out from the same soundfont by
+// github.com/goldst/midi-js-soundfonts, are copied beside the recordings as
+// <instrument>-loop.json. That repository names them after the soundfont's own
+// presets, so demo/sounds.json maps the few names that differ. An instrument
+// with none (the piano, guitar and pizzicato, which die away anyway) plays its
+// recording once.
 // Only the instruments the player offers are copied, read from
 // src/audio/sounds.ts so the two lists can't drift.
 //
@@ -19,8 +29,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dirname, '..')
-const { repo: REPO, commit: COMMIT } = JSON.parse(readFileSync(join(ROOT, 'demo', 'sounds.json'), 'utf8'))
-const DEST = join(ROOT, 'demo', 'public', 'sounds', `fluidr3-${COMMIT.slice(0, 7)}`)
+const { repo: REPO, commit: COMMIT, loops: LOOPS } = JSON.parse(readFileSync(join(ROOT, 'demo', 'sounds.json'), 'utf8'))
+const DEST = join(ROOT, 'demo', 'public', 'sounds', `fluidr3-${COMMIT.slice(0, 7)}-${LOOPS.commit.slice(0, 7)}`)
 
 // The third argument of each sampled('id', 'Label', 'instrument') line.
 const soundsTs = readFileSync(join(ROOT, 'src', 'audio', 'sounds.ts'), 'utf8')
@@ -53,10 +63,35 @@ for (const name of names) {
   fetched++
 }
 
+// ── Loop points ──
+let looped = 0
+const unlooped = []
+for (const name of names) {
+  const file = join(DEST, `${name}-loop.json`)
+  if (existsSync(file)) { looped++; continue }
+  const preset = LOOPS.names[name] ?? name
+  const url = `https://raw.githubusercontent.com/${LOOPS.repo}/${LOOPS.commit}/FluidR3_GM/${preset}-loop.json`
+  const res = await fetch(url)
+  if (res.status === 404) { unlooped.push(name); continue }
+  if (!res.ok) {
+    console.error(`${res.status} for ${url}`)
+    process.exit(1)
+  }
+  const data = await res.json()
+  if (!data || typeof data !== 'object' || !Object.keys(data).length) {
+    console.error(`Not loop data: ${url}`)
+    process.exit(1)
+  }
+  writeFileSync(file, JSON.stringify(data))
+  looped++
+}
+
 // CC BY asks for credit and the license wherever the recordings are shared.
 writeFileSync(join(DEST, 'CREDITS.txt'), `FluidR3 GM, by Frank Wen.
 License: Creative Commons Attribution 3.0, https://creativecommons.org/licenses/by/3.0/
 Rendered as JavaScript by https://github.com/${REPO} (commit ${COMMIT}).
+Loop points from https://github.com/${LOOPS.repo} (commit ${LOOPS.commit}).
 `)
 
 console.log(`Sounds: ${fetched} fetched, ${names.length - fetched} already present, in ${DEST}`)
+console.log(`Loop points: ${looped} instruments${unlooped.length ? `; none for ${unlooped.join(', ')}` : ''}`)

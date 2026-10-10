@@ -6,7 +6,7 @@ import soundsSource from './sounds.json'
 // The hosted pages play the sampled instruments from their own copy, made by
 // scripts/fetch-sounds.mjs when they build. `npm run dev` doesn't make one, so
 // it keeps the library's default source.
-export const SAMPLES_URL = import.meta.env.PROD ? `/sounds/fluidr3-${soundsSource.commit.slice(0, 7)}/` : undefined
+export const SAMPLES_URL = import.meta.env.PROD ? `/sounds/fluidr3-${soundsSource.commit.slice(0, 7)}-${soundsSource.loops.commit.slice(0, 7)}/` : undefined
 
 // The file Spool opens with: Victoria's O magnum mysterium, encoded by the
 // CRIM Project (CC BY-NC 4.0), served from Spool's own copy so it doesn't
