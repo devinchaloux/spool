@@ -1,9 +1,10 @@
 # Spool
 
 🎹 A piano roll player for MEI (Music Encoding Initiative) files, packaged
-for npm as `mei-piano-roll`. It reads an MEI file in the browser, draws its notes as a piano roll, plays them with a
-choice of synths or sampled instruments, makes still images of any bars, and
-lists anything in the file it could not show faithfully.
+for npm as `mei-piano-roll`. It reads an MEI file in the browser, draws its
+notes as a piano roll, plays them with a choice of synths or sampled
+instruments, makes still images of any bars, and lists anything in the file it
+could not show faithfully.
 
 ## Status
 
