@@ -539,9 +539,12 @@ sounds included, better than a scale; it reads with nothing left out.
 
 ### 2026-10-10: tempo is shown in the beat the meter names
 
-**Choice.** The tempo box and the small player's caption count the beat the
-meter's lower number names: half notes in 2/2, quarter notes in 4/4, eighths
-in 6/8. The tooltip names the unit. Inside, tempo stays in quarter notes a
+**Choice.** The tempo box and the small player's caption count the beat a
+listener feels: the note the meter's lower number names (half notes in 2/2,
+quarter notes in 4/4), except in compound meters (6/8, 9/8, 12/8 and other
+counts divisible by three over an eighth or shorter), which count the dotted
+beat: dotted quarters in 6/8 (`src/roll/tempo.ts`). The tooltip names the
+unit. 6/4 still counts quarters. Inside, tempo stays in quarter notes a
 minute, as MIDI and the transport count it, and the `bpm` prop is in quarter
 notes too.
 
@@ -549,12 +552,11 @@ notes too.
 a musician counts 60.
 
 **Why.** The maintainer asked for it: a tempo should read in the beat a
-musician feels.
+musician feels, the half note in 2/2 and the dotted quarter in 6/8.
 
 ## Open questions
 
 | Question | Options |
 |---|---|
 | How is the roll drawn, and how does it make sound? | Settled by the existing prototype for now (canvas; the browser's own audio); revisit only if the move shows a reason |
-| Compound meters: should 6/8, 9/8 and 12/8 count the dotted quarter? | Today they count the eighth, the meter's lower number. A musician usually feels the dotted quarter; the maintainer's call |
 | Which MEI elements does the roll handle first? | Notes, rests, ties and several staves first; list the rest as known gaps |

@@ -108,7 +108,7 @@ import { MeiPianoRoll } from 'mei-piano-roll'
 | `accent` | Note color (the first part's, with several); without it, the page's `--accent` CSS variable, then the theme's |
 | `partColors` | One color per part, in score order; default the note color, then quick-pick colors |
 | `separateParts` | Start with each part on its own roll; default `false` |
-| `height`, `pxPerBeat`, `bpm` | Size, starting zoom, and a tempo override in quarter notes a minute (the player shows tempo in the meter's beat: half notes in 2/2) |
+| `height`, `pxPerBeat`, `bpm` | Size, starting zoom, and a tempo override in quarter notes a minute (the player shows tempo in the beat a listener feels: half notes in 2/2, dotted quarters in 6/8) |
 | `onLoad` | Called with the parsed score, warnings included |
 
 Also exported: `NOTE_COLORS`, eight quick-pick note colors that adjust for
