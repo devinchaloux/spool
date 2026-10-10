@@ -8,6 +8,15 @@ import soundsSource from './sounds.json'
 // it keeps the library's default source.
 export const SAMPLES_URL = import.meta.env.PROD ? `/sounds/fluidr3-${soundsSource.commit.slice(0, 7)}/` : undefined
 
+// The file Spool opens with: Victoria's O magnum mysterium, encoded by the
+// CRIM Project (CC BY-NC 4.0), served from Spool's own copy so it doesn't
+// depend on another site staying up (demo/public/files/LICENSE.md). The
+// address is absolute, so a link or embed made from it works anywhere.
+export const DEFAULT_FILE = {
+  url: new URL('/files/CRIM_Model_0052.mei', window.location.origin).href,
+  creditUrl: 'https://crimproject.org/pieces/CRIM_Model_0052/',
+}
+
 // Where listeners report a bug or suggest an improvement.
 export const ISSUES_URL = 'https://github.com/devinchaloux/spool/issues/new'
 

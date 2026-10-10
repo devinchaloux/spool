@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { MeiPianoRoll, THEMES, NOTE_COLORS, noteColorFor, partColors, parseNative, rollToSvg, svgToPng, downloadBlob, type MeiScore, type ThemeName } from '../src'
 import { EXAMPLE_MEI } from './example'
 import { embedCode, fetchMei, fileNameOf, readParams, shareLink, type ShareSettings } from './share'
-import { ISSUES_URL, SAMPLES_URL, SITE_TOKENS } from './site'
+import { DEFAULT_FILE, ISSUES_URL, SAMPLES_URL, SITE_TOKENS } from './site'
 
 // ── Demo page ──
 // A studio page: a side panel for the file and the look, and tabs for the full
@@ -18,18 +18,20 @@ const TABS: { id: Tab; label: string; tip?: string }[] = [
   { id: 'image', label: 'Image' },
 ]
 
-// A link to Spool can name a file and its settings (demo/share.ts).
+// A link to Spool can name a file and its settings (demo/share.ts); without
+// one, Spool opens the default file.
 const START = readParams(window.location.search)
+const FIRST = START.src ?? DEFAULT_FILE.url
 
 export default function Demo() {
-  const [text, setText] = useState(START.src ? '' : EXAMPLE_MEI)
-  const [fileName, setFileName] = useState(START.src ? fileNameOf(START.src) : 'Example')
+  const [text, setText] = useState('')
+  const [fileName, setFileName] = useState(fileNameOf(FIRST))
   // Bumped for every file opened, so each starts a fresh player.
   const [fileKey, setFileKey] = useState(0)
   // Where the open file is online, if it was opened from an address: what a
   // link or an embed names. Empty for a file from the computer.
-  const [address, setAddress] = useState(START.src ?? '')
-  const [loading, setLoading] = useState<{ busy: boolean; error: string }>({ busy: !!START.src, error: '' })
+  const [address, setAddress] = useState(FIRST)
+  const [loading, setLoading] = useState<{ busy: boolean; error: string }>({ busy: true, error: '' })
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkDraft, setLinkDraft] = useState('')
   const [dragging, setDragging] = useState(false)
@@ -80,12 +82,13 @@ export default function Demo() {
       setLoading({ busy: false, error: e instanceof Error ? e.message : String(e) })
     }
   }
-  // Opened from a link: read the file it names, keeping the link's settings.
+  // The first file: the one a link names, keeping its settings, else the
+  // default. If it can't be read, the built-in example stands in; a missing
+  // default is no fault of the listener's, so it says nothing.
   useEffect(() => {
-    if (!START.src) return
-    fetchMei(START.src).then(
+    fetchMei(FIRST).then(
       (t) => { setText(t); setLoading({ busy: false, error: '' }) },
-      (e: Error) => { setText(EXAMPLE_MEI); setFileName('Example'); setAddress(''); setLoading({ busy: false, error: e.message }) },
+      (e: Error) => { setText(EXAMPLE_MEI); setFileName('Example'); setAddress(''); setLoading({ busy: false, error: START.src ? e.message : '' }) },
     )
   }, [])
   const settings: ShareSettings = {
@@ -132,6 +135,11 @@ export default function Demo() {
         )}
         <div className="studio-file">{loading.busy ? 'Loading…' : fileName}</div>
         {loading.error && <div className="studio-error" role="alert">{loading.error}</div>}
+        {address === DEFAULT_FILE.url && !loading.busy && (
+          <div className="studio-credit">
+            Encoding: <a href={DEFAULT_FILE.creditUrl} target="_blank" rel="noopener" title="The Renaissance Imitation Mass Project. Shared under CC BY-NC 4.0: free to use with credit, not commercially.">CRIM Project</a>
+          </div>
+        )}
 
         <section>
           <h2>Look</h2>
@@ -182,7 +190,7 @@ export default function Demo() {
           />
         )}
         {tab === 'image' && score && <ImageMaker score={score} theme={theme} partColors={shownColors} />}
-        {tab === 'image' && !score && <p className="studio-muted">This file couldn't be read.</p>}
+        {tab === 'image' && !score && text && <p className="studio-muted">This file couldn't be read.</p>}
       </main>
     </div>
   )
@@ -380,6 +388,9 @@ const CSS = `
 .studio-text-button { align-self: flex-start; margin-top: -6px; padding: 0; border: none; background: none; color: var(--text-muted); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .studio-text-button:hover { color: var(--text-strong); }
 .studio-error { margin-top: -6px; font-size: 13px; color: #ff8080; }
+.studio-credit { margin-top: -10px; font: 12px var(--font-mono); color: #808795; }
+.studio-credit a { color: var(--text-muted); text-underline-offset: 3px; }
+.studio-credit a:hover { color: var(--text-strong); }
 .studio-issue { margin-top: auto; padding-top: 16px; font-size: 13px; color: var(--text-muted); text-underline-offset: 3px; }
 .studio-issue:hover { color: var(--text-strong); }
 
