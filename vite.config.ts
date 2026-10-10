@@ -25,6 +25,6 @@ export default defineConfig({
     // Plain Node by default; a file that needs a DOM (the MEI reader uses the
     // browser's XML parser) says so on its first line:  // @vitest-environment jsdom
     environment: 'node',
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'demo/**/*.test.ts'],
   },
 })

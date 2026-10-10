@@ -1,38 +1,46 @@
-import { useMemo, useState, type CSSProperties } from 'react'
-import { MeiPianoRoll, THEMES, DEFAULT_THEME, NOTE_COLORS, noteColorFor, partColors, parseNative, rollToSvg, svgToPng, downloadBlob, type MeiScore, type ThemeName } from '../src'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { MeiPianoRoll, THEMES, NOTE_COLORS, noteColorFor, partColors, parseNative, rollToSvg, svgToPng, downloadBlob, type MeiScore, type ThemeName } from '../src'
 import { EXAMPLE_MEI } from './example'
-import soundsSource from './sounds.json'
+import { embedCode, fetchMei, fileNameOf, readParams, shareLink, type ShareSettings } from './share'
+import { ISSUES_URL, SAMPLES_URL, SITE_TOKENS } from './site'
 
 // ── Demo page ──
 // A studio page: a side panel for the file and the look, and tabs for the full
-// player, the compact player as it sits in an essay, and the image maker. The
-// file never leaves the browser. Text follows the house rule: say what a control
+// player, sharing (a link, or the compact player as an embed for a web page)
+// and the image maker. A file opened from the computer never leaves the
+// browser; one opened from an address stays where its owner put it. Text follows the house rule: say what a control
 // does in as few words as that takes, and put anything more in a tooltip.
 
-type Tab = 'player' | 'embed' | 'image'
+type Tab = 'player' | 'share' | 'image'
 const TABS: { id: Tab; label: string; tip?: string }[] = [
   { id: 'player', label: 'Player' },
-  { id: 'embed', label: 'Essay embed', tip: 'The compact player, as it sits in a page of text' },
+  { id: 'share', label: 'Share', tip: 'A link to this file, or a player for your own web page' },
   { id: 'image', label: 'Image' },
 ]
 
-// The hosted demo plays the sampled instruments from its own copy, made by
-// scripts/fetch-sounds.mjs when it builds. `npm run dev` doesn't make one, so it
-// keeps the library's default source.
-const SAMPLES_URL = import.meta.env.PROD ? `/sounds/fluidr3-${soundsSource.commit.slice(0, 7)}/` : undefined
+// A link to Spool can name a file and its settings (demo/share.ts).
+const START = readParams(window.location.search)
 
 export default function Demo() {
-  const [text, setText] = useState(EXAMPLE_MEI)
-  const [fileName, setFileName] = useState('Example')
+  const [text, setText] = useState(START.src ? '' : EXAMPLE_MEI)
+  const [fileName, setFileName] = useState(START.src ? fileNameOf(START.src) : 'Example')
+  // Bumped for every file opened, so each starts a fresh player.
+  const [fileKey, setFileKey] = useState(0)
+  // Where the open file is online, if it was opened from an address: what a
+  // link or an embed names. Empty for a file from the computer.
+  const [address, setAddress] = useState(START.src ?? '')
+  const [loading, setLoading] = useState<{ busy: boolean; error: string }>({ busy: !!START.src, error: '' })
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [linkDraft, setLinkDraft] = useState('')
   const [dragging, setDragging] = useState(false)
-  const [theme, setTheme] = useState<ThemeName>('studio')
+  const [theme, setTheme] = useState<ThemeName>(START.theme)
   // One color per part; null means the default (the theme's own color for the
   // first part, a quick-pick color for the others).
-  const [colors, setColors] = useState<(string | null)[]>([null])
+  const [colors, setColors] = useState<(string | null)[]>(START.colors.length ? START.colors : [null])
   const [colorPart, setColorPart] = useState(0)
-  // Each part's sound as last chosen in a player, so the essay embed plays what
-  // the player was set to. Undefined: the sounds the file suggests.
-  const [sounds, setSounds] = useState<string[] | undefined>(undefined)
+  // Each part's sound as last chosen in a player, so the shared player plays
+  // what the player was set to. Undefined: the sounds the file suggests.
+  const [sounds, setSounds] = useState<string[] | undefined>(START.sounds.length ? START.sounds : undefined)
   const [tab, setTab] = useState<Tab>('player')
   // Read here as well as in the player, so the page header and the image maker
   // have the score whichever tab is open.
@@ -45,15 +53,45 @@ export default function Demo() {
   const shownColors = defaults.map((c, i) => colors[i] ?? c)
   const by = score ? byline(score) : ''
 
-  const open = async (file: File | undefined) => {
-    if (!file) return
-    setText(await file.text())
-    setFileName(file.name)
-    // The first part's color carries over, as the note color; the rest and the
-    // sounds belong to the old file's parts.
+  // A new file: the first part's color carries over, as the note color; the
+  // rest and the sounds belong to the old file's parts.
+  const show = (newText: string, name: string, at: string) => {
+    setText(newText)
+    setFileName(name)
+    setAddress(at)
+    setFileKey((k) => k + 1)
     setColors((c) => [c[0]])
     setColorPart(0)
     setSounds(undefined)
+  }
+  const open = async (file: File | undefined) => {
+    if (!file) return
+    show(await file.text(), file.name, '')
+    setLoading({ busy: false, error: '' })
+  }
+  const openAddress = async (at: string) => {
+    if (!at.trim()) return
+    setLoading({ busy: true, error: '' })
+    try {
+      show(await fetchMei(at), fileNameOf(at.trim()), at.trim())
+      setLoading({ busy: false, error: '' })
+      setLinkOpen(false)
+    } catch (e) {
+      setLoading({ busy: false, error: e instanceof Error ? e.message : String(e) })
+    }
+  }
+  // Opened from a link: read the file it names, keeping the link's settings.
+  useEffect(() => {
+    if (!START.src) return
+    fetchMei(START.src).then(
+      (t) => { setText(t); setLoading({ busy: false, error: '' }) },
+      (e: Error) => { setText(EXAMPLE_MEI); setFileName('Example'); setAddress(''); setLoading({ busy: false, error: e.message }) },
+    )
+  }, [])
+  const settings: ShareSettings = {
+    theme,
+    colors: colors.some(Boolean) ? shownColors : [],
+    sounds: sounds ?? [],
   }
   const setPartColor = (c: string | null) => setColors((prev) => {
     const next = [...prev]
@@ -70,12 +108,30 @@ export default function Demo() {
     >
       <style>{CSS}</style>
       <aside className="studio-side">
-        <h1>Spool <span className="studio-alpha" title="An early version that changes often. Some files won't show everything they encode; the player lists what it leaves out.">Alpha</span></h1>
+        <h1>Spool <span className="studio-alpha" title="Early and changing often. The player lists anything in a file it can't show.">Alpha</span></h1>
         <label className="studio-open" title="Or drop a file anywhere on the page">
           Open MEI file
           <input type="file" accept=".mei,.xml" hidden onChange={(e) => open(e.target.files?.[0])} />
         </label>
-        <div className="studio-file">{fileName}</div>
+        {linkOpen ? (
+          <form className="studio-link" onSubmit={(e) => { e.preventDefault(); openAddress(linkDraft) }}>
+            <input
+              className="studio-field"
+              type="url"
+              value={linkDraft}
+              onChange={(e) => setLinkDraft(e.target.value)}
+              placeholder="File address"
+              aria-label="File address"
+              title="A GitHub or Dropbox link works, or any address that lets other sites read the file."
+              autoFocus
+            />
+            <button className="studio-button" type="submit" disabled={loading.busy}>Open</button>
+          </form>
+        ) : (
+          <button className="studio-text-button" onClick={() => setLinkOpen(true)}>Open from a link</button>
+        )}
+        <div className="studio-file">{loading.busy ? 'Loading…' : fileName}</div>
+        {loading.error && <div className="studio-error" role="alert">{loading.error}</div>}
 
         <section>
           <h2>Look</h2>
@@ -94,6 +150,7 @@ export default function Demo() {
           )}
           <ColorPicker theme={theme} value={colors[colorPart] ?? null} fallback={defaults[Math.min(colorPart, partCount - 1)]} onChange={setPartColor} />
         </section>
+        <a className="studio-issue" href={ISSUES_URL} target="_blank" rel="noopener" title="Report a bug or suggest an improvement on GitHub">Report an issue</a>
       </aside>
 
       <main className="studio-main">
@@ -111,14 +168,18 @@ export default function Demo() {
 
         {/* Only the open tab is mounted: each player has its own sound, and two
             must never play at once. key: a new file starts a fresh player. */}
-        {tab === 'player' && (
-          <MeiPianoRoll key={fileName} meiText={text} height={420} theme={theme} partColors={shownColors} header={false} partSounds={sounds} onPartSoundsChange={setSounds} samplesUrl={SAMPLES_URL} />
+        {tab === 'player' && text && (
+          <MeiPianoRoll key={fileKey} meiText={text} height={420} theme={theme} partColors={shownColors} header={false} partSounds={sounds} onPartSoundsChange={setSounds} samplesUrl={SAMPLES_URL} />
         )}
-        {tab === 'embed' && (
-          <div className="studio-essay">
-            <MeiPianoRoll key={fileName} meiText={text} height={300} theme={theme} partColors={shownColors} variant="compact" partSounds={sounds} onPartSoundsChange={setSounds} samplesUrl={SAMPLES_URL} />
-            <CopyCode code={embedCode({ fileName, theme, colors: colors.slice(0, partCount), shownColors, sounds })} />
-          </div>
+        {tab === 'share' && text && (
+          <Share
+            address={address}
+            title={`${score?.title || fileName} · Spool`}
+            settings={settings}
+            player={<MeiPianoRoll key={fileKey} meiText={text} height={300} theme={theme} partColors={shownColors} variant="compact" partSounds={sounds} onPartSoundsChange={setSounds} samplesUrl={SAMPLES_URL} />}
+            onAddress={openAddress}
+            busy={loading.busy}
+          />
         )}
         {tab === 'image' && score && <ImageMaker score={score} theme={theme} partColors={shownColors} />}
         {tab === 'image' && !score && <p className="studio-muted">This file couldn't be read.</p>}
@@ -156,43 +217,58 @@ function ColorPicker({ theme, value, fallback, onChange }: { theme: ThemeName; v
   )
 }
 
-// ── Embed code ──
-// The essay embed as it is set up here, as code for a page: the theme, any
-// colors chosen, and the sounds picked in either player. Defaults are left
-// out, so a page's own accent still colors the notes unless one was chosen.
+// ── Share ──
+// A link opens the file in Spool; the embed is the compact player in an
+// iframe, for any web page. Both only name the file's address: Spool keeps
+// nothing on a server, so the file must be online where anyone can read it.
 
 function byline(score: MeiScore): string {
   return [...new Set([score.composer, score.artist].filter(Boolean))].join(' · ')
 }
 
-function embedCode({ fileName, theme, colors, shownColors, sounds }: {
-  fileName: string; theme: ThemeName; colors: (string | null)[]; shownColors: string[]; sounds?: string[]
-}): string {
-  const list = (xs: string[]) => `{[${xs.map((x) => JSON.stringify(x)).join(', ')}]}`
-  const props = [
-    `src=${JSON.stringify(/\.(mei|xml)$/i.test(fileName) ? fileName : 'your-file.mei')}`,
-    'variant="compact"',
-    theme !== DEFAULT_THEME && `theme="${theme}"`,
-    // One color for the first part leaves the rest to follow from it.
-    colors.slice(1).some(Boolean) ? `partColors=${list(shownColors)}` : colors[0] && `accent="${colors[0]}"`,
-    sounds && `partSounds=${list(sounds)}`,
-  ].filter(Boolean)
-  return `<MeiPianoRoll\n${props.map((p) => `  ${p}`).join('\n')}\n/>`
+function Share({ address, title, settings, player, onAddress, busy }: {
+  address: string; title: string; settings: ShareSettings; player: ReactNode
+  onAddress: (at: string) => void; busy: boolean
+}) {
+  const [draft, setDraft] = useState(address)
+  useEffect(() => setDraft(address), [address])
+  const origin = window.location.origin
+  return (
+    <div className="studio-share">
+      <form className="studio-row" onSubmit={(e) => { e.preventDefault(); onAddress(draft) }}>
+        <label className="studio-label studio-grow" title="A GitHub or Dropbox link works, or any address that lets other sites read the file.">
+          File address
+          <input className="studio-field studio-grow" type="url" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="https://…/your-file.mei" />
+        </label>
+        {draft.trim() !== address && <button className="studio-button" type="submit" disabled={busy}>Use this file</button>}
+      </form>
+      {!address && <p className="studio-muted">Spool doesn't upload files. Put this file online, then paste its address here to share it.</p>}
+
+      <h2 className="studio-heading">Link</h2>
+      <CopyRow text={address ? shareLink(origin, address, settings) : ''} label="Copy link" tip="Opens this file in Spool, set up as it is now" />
+
+      <h2 className="studio-heading">Embed</h2>
+      <div className="studio-essay">{player}</div>
+      <CopyRow text={address ? embedCode(origin, address, title, settings) : ''} label="Copy code" tip="Paste into a web page's HTML" code />
+    </div>
+  )
 }
 
-function CopyCode({ code }: { code: string }) {
+// Text to copy, with its button. Empty text: nothing to copy until the file
+// has an address.
+function CopyRow({ text, label, tip, code }: { text: string; label: string; tip: string; code?: boolean }) {
   const [copied, setCopied] = useState(false)
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(code)
+      await navigator.clipboard.writeText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
-    } catch { /* the code is on screen to copy by hand */ }
+    } catch { /* the text is on screen to copy by hand */ }
   }
   return (
     <div className="studio-code">
-      <pre>{code}</pre>
-      <button className="studio-button" onClick={copy} title="Code for this embed, with its theme, colors and sounds">{copied ? 'Copied' : 'Copy code'}</button>
+      <pre className={code ? '' : 'studio-nowrap'}>{text || 'Add the file’s address first.'}</pre>
+      <button className="studio-button" onClick={copy} disabled={!text} title={tip}>{copied ? 'Copied' : label}</button>
     </div>
   )
 }
@@ -231,7 +307,7 @@ function ImageMaker({ score, theme, partColors }: { score: MeiScore; theme: Them
         <img alt="Image preview" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`} />
       </div>
       <div className="studio-row">
-        <label className="studio-label" title={`Counted from 1, of ${barCount}`}>
+        <label className="studio-label" title={`Bar 1 to ${barCount}`}>
           Bars
           <input className="studio-field studio-num" type="number" min={1} max={barCount} value={from} onChange={(e) => setFromBar(num(e.target.value, 1))} />
           to
@@ -249,7 +325,7 @@ function ImageMaker({ score, theme, partColors }: { score: MeiScore; theme: Them
         {check('Background', background, setBackground, 'Off for a transparent background')}
         {score.parts.length > 1 && check('Separate parts', separateParts, setSeparateParts, 'Each part on its own roll')}
         <span className="studio-spacer" />
-        <button className="studio-button" title="Sharp at any size" onClick={() => downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${name}.svg`)}>Save SVG</button>
+        <button className="studio-button" title="A vector image, sharp at any size" onClick={() => downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${name}.svg`)}>Save SVG</button>
         <button className="studio-button" onClick={async () => downloadBlob(await svgToPng(svg, width, height, 2), `${name}.png`)}>Save PNG</button>
       </div>
     </section>
@@ -262,10 +338,7 @@ function ImageMaker({ score, theme, partColors }: { score: MeiScore; theme: Them
 
 const CSS = `
 .studio {
-  --surface: #15171f; --surface-2: #1c1f2a; --border: #2a2e3a;
-  --text-strong: #e8eaf1; --text: #d5d9e3; --text-muted: #9298a9;
-  --accent: #ff5ca0; --accent-ink: #2e0418; --radius: 10px;
-  --font-mono: 'DM Mono', ui-monospace, Menlo, Consolas, monospace;
+  ${SITE_TOKENS}
   min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr);
   background: #0d0e12; color: var(--text); font: 14px/1.45 'Instrument Sans', system-ui, sans-serif;
 }
@@ -295,9 +368,20 @@ const CSS = `
 .studio-spacer { flex: 1; }
 .studio-meta { padding-bottom: 10px; font: 13px var(--font-mono); color: #808795; }
 .studio-muted { color: var(--text-muted); }
-.studio-essay { max-width: 760px; display: flex; flex-direction: column; gap: 14px; }
+.studio-essay { max-width: 760px; }
+.studio-share { max-width: 760px; display: flex; flex-direction: column; gap: 12px; }
+.studio-heading { margin: 10px 0 0; font: 400 11px var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: #808795; }
+.studio-grow { flex: 1; min-width: 0; }
 .studio-code { display: flex; gap: 12px; align-items: flex-start; }
-.studio-code pre { flex: 1; min-width: 0; margin: 0; padding: 10px 12px; overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-muted); font: 12px/1.5 var(--font-mono); }
+.studio-code pre { flex: 1; min-width: 0; margin: 0; padding: 10px 12px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-muted); font: 12px/1.5 var(--font-mono); }
+.studio-code pre.studio-nowrap { white-space: nowrap; overflow-wrap: normal; }
+.studio-link { display: flex; gap: 8px; margin-top: -4px; }
+.studio-link .studio-field { flex: 1; min-width: 0; }
+.studio-text-button { align-self: flex-start; margin-top: -6px; padding: 0; border: none; background: none; color: var(--text-muted); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.studio-text-button:hover { color: var(--text-strong); }
+.studio-error { margin-top: -6px; font-size: 13px; color: #ff8080; }
+.studio-issue { margin-top: auto; padding-top: 16px; font-size: 13px; color: var(--text-muted); text-underline-offset: 3px; }
+.studio-issue:hover { color: var(--text-strong); }
 
 .studio-image { display: flex; flex-direction: column; gap: 14px; }
 .studio-preview { overflow: auto; border: 1px dashed var(--border); border-radius: 8px; background: repeating-conic-gradient(#1c1f2a 0% 25%, #15171f 0% 50%) 50% / 16px 16px; }
@@ -307,7 +391,8 @@ const CSS = `
 .studio-num { width: 58px; }
 .studio-num-wide { width: 74px; }
 .studio-button { height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-strong); font: inherit; cursor: pointer; }
-.studio-button:hover { border-color: var(--text-muted); }
+.studio-button:hover:not(:disabled) { border-color: var(--text-muted); }
+.studio-button:disabled { opacity: 0.5; cursor: default; }
 .studio input[type="checkbox"] { accent-color: var(--accent); }
 
 @media (max-width: 820px) {
