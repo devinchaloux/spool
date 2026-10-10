@@ -1,6 +1,7 @@
-# mei-piano-roll
+# Spool (mei-piano-roll)
 
-🎹 A piano roll player for MEI (Music Encoding Initiative) files. It reads an
+🎹 A piano roll player for MEI (Music Encoding Initiative) files. The hosted
+tool is called **Spool**; the package keeps the name `mei-piano-roll`. It reads an
 MEI file in the browser, draws its notes as a piano roll, plays them with a
 choice of synths or sampled instruments, makes still images of any bars, and
 lists anything in the file it could not show faithfully.

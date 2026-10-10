@@ -70,7 +70,7 @@ export default function Demo() {
     >
       <style>{CSS}</style>
       <aside className="studio-side">
-        <h1>MEI piano roll <span className="studio-alpha" title="An early version that changes often. Some files won't show everything they encode; the player lists what it leaves out.">Alpha</span></h1>
+        <h1>Spool <span className="studio-alpha" title="An early version that changes often. Some files won't show everything they encode; the player lists what it leaves out.">Alpha</span></h1>
         <label className="studio-open" title="Or drop a file anywhere on the page">
           Open MEI file
           <input type="file" accept=".mei,.xml" hidden onChange={(e) => open(e.target.files?.[0])} />

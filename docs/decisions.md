@@ -440,8 +440,11 @@ out. Phones are not a target.
 
 **Why.** The maintainer wants to share the public version of the tool
 (2026-10-10). "Alpha" sets expectations: the reader handles cleanly encoded
-files, and on the sample files most still report a gap. A friendlier name for
-the tool is still to be chosen.
+files, and on the sample files most still report a gap.
+
+**Note (2026-10-10).** The tool is named **Spool**, after the spool a piano
+roll is wound on, and is to be hosted at `spool.devinchaloux.com`. The package
+keeps the name `mei-piano-roll`, which says what it is to someone searching npm.
 
 ### 2026-10-10: the hosted demo plays the sampled instruments from its own copy
 
