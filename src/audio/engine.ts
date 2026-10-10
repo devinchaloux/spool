@@ -176,7 +176,12 @@ export class SoundEngine {
         out.connect(ch.out)
         // MP3 only from a hosted copy: every browser decodes it, and one format
         // halves what the host stores.
-        const source = this.samplesUrl ? { instrumentUrl: `${this.samplesUrl}${name}-mp3.js` } : { instrument: name, kit: 'FluidR3_GM' }
+        // A hosted copy may carry loop points beside each recording, so a
+        // held note sustains past the recording's three seconds; a missing
+        // file just means the recording plays once.
+        const source = this.samplesUrl
+          ? { instrumentUrl: `${this.samplesUrl}${name}-mp3.js`, loopDataUrl: `${this.samplesUrl}${name}-loop.json` }
+          : { instrument: name, kit: 'FluidR3_GM' }
         const inst = Soundfont(this.ctx, { ...source, destination: out }) as unknown as SampledInstrument
         await inst.load
         return { inst, out }

@@ -554,6 +554,37 @@ a musician counts 60.
 **Why.** The maintainer asked for it: a tempo should read in the beat a
 musician feels, the half note in 2/2 and the dotted quarter in 6/8.
 
+### 2026-10-10: held notes sustain: loop points beside the recordings
+
+**Choice.** Each sampled note is a recording about three seconds long, so a
+note held longer went silent before it ended: in the default motet, the
+altus's held D in bars 9 and 10 cut out. The demo's build now copies loop
+points for each recording (where in it to repeat while a note is held) beside
+the recordings, and the player passes them to the sample player, which loops
+that stretch until the note ends. They come from
+`goldst/midi-js-soundfonts`, worked out from the same FluidR3 soundfont,
+pinned to one commit in `demo/sounds.json`. That repository names a few
+instruments after the soundfont's presets, so the file maps them (the choir is
+`ahh_choir`). Fourteen of the eighteen instruments have loop points; the
+piano, electric piano, nylon guitar and pizzicato strings play their
+recording once, as they die away within it anyway.
+
+**Rejected.**
+- *Re-sounding a long note every three seconds:* an audible new attack in
+  the middle of a held note.
+- *The sample library's own loop lookup:* it asks another site by General
+  MIDI name, which misses the choir and the strings, and the demo would depend
+  on that site.
+
+**Why.** Long notes are the norm in the default file and in much vocal music;
+a note must sound for as long as it is written. Measured in a browser: a
+held choir note fell silent at about three seconds without loop points and
+kept its level past five seconds with them.
+
+**Still open.** Pages that use the library without a hosted copy
+(`samplesUrl`) get no loop points, so their long sampled notes still stop at
+the recording's end.
+
 ## Open questions
 
 | Question | Options |
