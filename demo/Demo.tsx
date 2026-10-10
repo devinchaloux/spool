@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { MeiPianoRoll, THEMES, DEFAULT_THEME, NOTE_COLORS, noteColorFor, partColors, parseNative, rollToSvg, svgToPng, downloadBlob, type MeiScore, type ThemeName } from '../src'
 import { EXAMPLE_MEI } from './example'
+import soundsSource from './sounds.json'
 
 // ── Demo page ──
 // A studio page: a side panel for the file and the look, and tabs for the full
@@ -14,6 +15,11 @@ const TABS: { id: Tab; label: string; tip?: string }[] = [
   { id: 'embed', label: 'Essay embed', tip: 'The compact player, as it sits in a page of text' },
   { id: 'image', label: 'Image' },
 ]
+
+// The hosted demo plays the sampled instruments from its own copy, made by
+// scripts/fetch-sounds.mjs when it builds. `npm run dev` doesn't make one, so it
+// keeps the library's default source.
+const SAMPLES_URL = import.meta.env.PROD ? `/sounds/fluidr3-${soundsSource.commit.slice(0, 7)}/` : undefined
 
 export default function Demo() {
   const [text, setText] = useState(EXAMPLE_MEI)
@@ -64,7 +70,7 @@ export default function Demo() {
     >
       <style>{CSS}</style>
       <aside className="studio-side">
-        <h1>MEI piano roll</h1>
+        <h1>MEI piano roll <span className="studio-alpha" title="An early version that changes often. Some files won't show everything they encode; the player lists what it leaves out.">Alpha</span></h1>
         <label className="studio-open" title="Or drop a file anywhere on the page">
           Open MEI file
           <input type="file" accept=".mei,.xml" hidden onChange={(e) => open(e.target.files?.[0])} />
@@ -106,11 +112,11 @@ export default function Demo() {
         {/* Only the open tab is mounted: each player has its own sound, and two
             must never play at once. key: a new file starts a fresh player. */}
         {tab === 'player' && (
-          <MeiPianoRoll key={fileName} meiText={text} height={420} theme={theme} partColors={shownColors} header={false} partSounds={sounds} onPartSoundsChange={setSounds} />
+          <MeiPianoRoll key={fileName} meiText={text} height={420} theme={theme} partColors={shownColors} header={false} partSounds={sounds} onPartSoundsChange={setSounds} samplesUrl={SAMPLES_URL} />
         )}
         {tab === 'embed' && (
           <div className="studio-essay">
-            <MeiPianoRoll key={fileName} meiText={text} height={300} theme={theme} partColors={shownColors} variant="compact" partSounds={sounds} onPartSoundsChange={setSounds} />
+            <MeiPianoRoll key={fileName} meiText={text} height={300} theme={theme} partColors={shownColors} variant="compact" partSounds={sounds} onPartSoundsChange={setSounds} samplesUrl={SAMPLES_URL} />
             <CopyCode code={embedCode({ fileName, theme, colors: colors.slice(0, partCount), shownColors, sounds })} />
           </div>
         )}
@@ -266,6 +272,7 @@ const CSS = `
 .studio-drop { outline: 2px dashed var(--accent); outline-offset: -6px; }
 .studio-side { display: flex; flex-direction: column; gap: 14px; padding: 24px 20px; background: var(--surface); border-right: 1px solid var(--border); }
 .studio-side h1 { margin: 0 0 6px; font-size: 17px; font-weight: 700; color: var(--text-strong); letter-spacing: -0.01em; }
+.studio-alpha { margin-left: 6px; padding: 1px 6px; border: 1px solid currentColor; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; vertical-align: 2px; opacity: 0.7; cursor: help; }
 .studio-side section { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .studio-side h2 { margin: 0; font: 400 11px var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: #808795; }
 .studio-open { display: flex; align-items: center; justify-content: center; height: 40px; border-radius: 8px; border: 1px dashed #3a455f; color: var(--text-strong); font-weight: 500; cursor: pointer; }

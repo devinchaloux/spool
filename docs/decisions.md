@@ -1,6 +1,7 @@
 # Decisions
 
-**Status (2026-10-08):** the native reader works, and the player has a sound
+**Status (2026-10-10):** the hosted demo is a public alpha, and plays the
+sampled instruments from its own copy. The native reader works, and the player has a sound
 picker, color themes, image export and several instruments in one roll, each
 with its own color and sound. Tied notes sound once and grace notes play
 before their beat. The composer and artist show when the file names them.
@@ -143,6 +144,10 @@ a piece needs them, and a page pays for them only when someone listens.
 **Known risk.** The recordings are fetched from a single volunteer-run GitHub
 site. Before the package is public, host a copy alongside it (smplr supports a
 custom address).
+
+**Note (2026-10-10).** The hosted demo now has its own copy; see "the hosted
+demo plays the sampled instruments from its own copy". The library's default is
+still the volunteer site, until the tool has its own address.
 
 ### 2026-10-07: color themes, and notes follow the page's accent
 
@@ -425,6 +430,46 @@ encoder, editor and publisher, and names the composer twice.
 **Why.** Before, only `<persName role="composer">` was read, and the demo
 didn't show it at all. On the 617 sample files, a composer is now found in 420
 (from 390), and no file lost one; the gain is files that use only `<composer>`.
+
+### 2026-10-10: the hosted demo is a public alpha
+
+**Choice.** The hosted demo is shared publicly as a tool anyone can open an MEI
+file in, as Verovio offers its online viewer. It is labeled **Alpha** beside
+its title, with a tooltip saying it changes often and lists what it leaves
+out. Phones are not a target.
+
+**Why.** The maintainer wants to share the public version of the tool
+(2026-10-10). "Alpha" sets expectations: the reader handles cleanly encoded
+files, and on the sample files most still report a gap. A friendlier name for
+the tool is still to be chosen.
+
+### 2026-10-10: the hosted demo plays the sampled instruments from its own copy
+
+**Choice.** When the demo builds (`npm run build:demo`), `scripts/fetch-sounds.mjs`
+downloads the recordings of every sampled instrument the player offers, read
+from `src/audio/sounds.ts`, into `demo/public/sounds/`, which git ignores. The
+source is the FluidR3 set as rendered by `gleitz/midi-js-soundfonts`, pinned to
+one commit in `demo/sounds.json`; the folder is named after that commit, so
+its files never change and browsers cache them for a year. MP3 only: every
+browser decodes it, and it halves the copy, to about 45 MB. A `CREDITS.txt`
+beside them carries the CC BY credit and license. The player takes a new
+`samplesUrl` prop for a hosted copy; the demo sets it in its built version
+only, so `npm run dev` still uses the volunteer site.
+
+**Rejected.**
+- *Committing the files:* about 45 MB (95 MB with the second format) in the
+  history for good, in every clone.
+- *Vercel Blob storage:* durable, but a second service on the maintainer's
+  account to look after, and an upload step outside the repo.
+
+**Why.** Listeners no longer depend on a volunteer-run site. Nothing large
+enters git. If the source ever disappears, the next build fails loudly, the
+live demo keeps its copy, and that copy is the place to move the files from
+(to Blob storage, say) by changing one setting.
+
+**Still open.** The library's own default stays the volunteer site. Once the
+tool has a lasting address, the default could point at its copy, which would
+then need a cross-origin header so other sites can read it.
 
 ## Open questions
 
