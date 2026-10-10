@@ -6,7 +6,11 @@ import path from 'path'
 // `npm run build` builds the library from src/index.ts; the demo is not part of it.
 export default defineConfig({
   plugins: [react()],
+  // `npm run dev` serves the demo's own public folder (its default file and,
+  // once fetched, the sampled instruments); the library build copies none of it.
+  publicDir: 'demo/public',
   build: {
+    copyPublicDir: false,
     lib: {
       entry: path.resolve(import.meta.dirname, 'src/index.ts'),
       formats: ['es'],

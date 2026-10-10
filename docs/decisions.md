@@ -514,6 +514,46 @@ form, for bugs and suggestions.
 
 **Why.** A public tool needs one obvious place for feedback.
 
+### 2026-10-10: the demo opens with a CRIM Project motet, kept in this repository
+
+**Choice.** Spool opens Tomás Luis de Victoria's *O magnum mysterium* as
+encoded by the CRIM Project (Citations: The Renaissance Imitation Mass
+Project), credited under the file's name with a link to its CRIM page. The
+file is committed unchanged at `demo/public/files/CRIM_Model_0052.mei`, with
+its credit and license in `LICENSE.md` beside it, and served from Spool's own
+address. If it can't be read, the built-in two-part example opens instead.
+
+This is the one exception to "no MEI files are committed" (2026-10-07). That
+rule keeps encodings of unclear origin and license out of a public history;
+this file's origin and license are stated in its own header.
+
+**License.** CC BY-NC 4.0: free to share and adapt with credit, not for
+commercial use. It is not covered by Spool's MIT license; anyone reusing
+Spool commercially leaves it out. The library package never includes it.
+
+**Rejected.** *Reading it from the CRIM Project's repository by address:* no
+copy here, but the demo would break if that file moved or the site went down.
+
+**Why.** A real four-voice piece shows what Spool is for, parts, colors and
+sounds included, better than a scale; it reads with nothing left out.
+
+### 2026-10-10: tempo is shown in the beat the meter names
+
+**Choice.** The tempo box and the small player's caption count the beat a
+listener feels: the note the meter's lower number names (half notes in 2/2,
+quarter notes in 4/4), except in compound meters (6/8, 9/8, 12/8 and other
+counts divisible by three over an eighth or shorter), which count the dotted
+beat: dotted quarters in 6/8 (`src/roll/tempo.ts`). The tooltip names the
+unit. 6/4 still counts quarters. Inside, tempo stays in quarter notes a
+minute, as MIDI and the transport count it, and the `bpm` prop is in quarter
+notes too.
+
+**Rejected.** Quarter notes for every meter, as before: 2/2 read as 120 where
+a musician counts 60.
+
+**Why.** The maintainer asked for it: a tempo should read in the beat a
+musician feels, the half note in 2/2 and the dotted quarter in 6/8.
+
 ## Open questions
 
 | Question | Options |

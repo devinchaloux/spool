@@ -1,7 +1,9 @@
 # Test files
 
-**No MEI files are committed to this repository** (decided 2026-10-07; see
-`docs/decisions.md`).
+**No test MEI files are committed to this repository** (decided 2026-10-07;
+see `docs/decisions.md`). The one MEI file in the repository is the demo's
+default, `demo/public/files/CRIM_Model_0052.mei`, credited and licensed
+separately (`demo/public/files/LICENSE.md`); tests don't use it.
 
 - **Stress test:** a script downloads the MEI project's sample encodings
   (`music-encoding/sample-encodings`, Educational Community License 2.0),

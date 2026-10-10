@@ -9,7 +9,8 @@ could not show faithfully.
 ## Status
 
 **2026-10-10:** Spool is a public alpha at https://spool.devinchaloux.com. It
-opens a file from your computer or from a link, shares a file as a link or as
+opens with a Renaissance motet from the CRIM Project, shows tempo in the beat
+the meter names, opens a file from your computer or from a link, shares a file as a link or as
 a player for any web page, and plays the sampled instruments from its own copy
 of the recordings. The first reader works. It handles short, cleanly encoded
 files.
@@ -33,8 +34,9 @@ npm install
 npm run dev
 ```
 
-Open the address it prints. The page shows a built-in two-part example; open
-any `.mei` file, drop one on the page, or open one from a link. A file from
+Open the address it prints. The page opens Tomás Luis de Victoria's *O magnum
+mysterium*, encoded by the [CRIM Project](https://crimproject.org/pieces/CRIM_Model_0052/)
+(CC BY-NC 4.0; see `demo/public/files/LICENSE.md`). Open any `.mei` file, drop one on the page, or open one from a link. A file from
 your computer stays in your browser. Three tabs show the **full player**,
 **Share** (a link to the file, or a small player for a web page) and the
 **image maker**, which saves any bars as SVG or PNG. The side panel sets the
@@ -106,7 +108,7 @@ import { MeiPianoRoll } from 'mei-piano-roll'
 | `accent` | Note color (the first part's, with several); without it, the page's `--accent` CSS variable, then the theme's |
 | `partColors` | One color per part, in score order; default the note color, then quick-pick colors |
 | `separateParts` | Start with each part on its own roll; default `false` |
-| `height`, `pxPerBeat`, `bpm` | Size, starting zoom, tempo override |
+| `height`, `pxPerBeat`, `bpm` | Size, starting zoom, and a tempo override in quarter notes a minute (the player shows tempo in the beat a listener feels: half notes in 2/2, dotted quarters in 6/8) |
 | `onLoad` | Called with the parsed score, warnings included |
 
 Also exported: `NOTE_COLORS`, eight quick-pick note colors that adjust for

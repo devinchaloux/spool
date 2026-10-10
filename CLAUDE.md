@@ -73,7 +73,8 @@ clones.
 3. **If you didn't create a file and its origin and license aren't clear, don't
    commit it.** This covers MEI files above all: scores and encodings carry their own
    copyright. No MEI files are committed; the stress test fetches them
-   (`docs/fixtures.md`).
+   (`docs/fixtures.md`). The one exception is the demo's default file, kept
+   with its license in `demo/public/files/` (`docs/decisions.md`, 2026-10-10).
 4. **No secrets, tokens or personal email addresses** in any commit.
 5. **Ask before anything destructive:** deleting files, `git reset`, anything
    that touches an outside service.

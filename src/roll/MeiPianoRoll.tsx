@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { parseNative, midiName, isBlackKey } from "../mei/parseNative";
 import type { MeiPart, MeiScore, MeiWarning } from "../mei/types";
 import { SoundEngine, type SoundStatus } from "../audio/engine";
+import { tempoBeat, BEAT_NAMES } from "./tempo";
 import { Transport } from "../audio/transport";
 import { SOUNDS, DEFAULT_SOUND, SAMPLE_CREDIT, findSound } from "../audio/sounds";
 import { soundForPart } from "../audio/instruments";
@@ -36,7 +37,7 @@ export interface MeiPianoRollProps {
   height?: number;
   /** Initial horizontal zoom in px-per-quarter-beat. Default 64. */
   pxPerBeat?: number;
-  /** Override the tempo from the file. */
+  /** Override the tempo from the file, in quarter notes a minute. The player shows it in the meter's beat (dotted in compound meters). */
   bpm?: number;
   /**
    * Note color. Without it, the page's `--accent` CSS variable is used (and
@@ -128,6 +129,7 @@ function positionLabel(score: MeiScore, beat: number): string {
   return `${bars[i].label}.${Math.floor((beat - bars[i].start) / beatLen + 1e-6) + 1}`;
 }
 
+
 // Layout constants
 const KEY_W = 46;
 const RULER_H = 22;
@@ -169,7 +171,11 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
   const [errMsg, setErrMsg] = useState("");
   const [meta, setMeta] = useState<{ title: string; byline: string; line: string } | null>(null);
   const [playing, setPlaying] = useState(false);
+  // Tempo is kept in quarter notes a minute, as the transport and MIDI count it,
+  // and shown in the beat a listener feels: half notes in 2/2, dotted quarters
+  // in 6/8 (tempoBeat).
   const [bpm, setBpm] = useState<number>(props.bpm ?? 120);
+  const [beatQuarters, setBeatQuarters] = useState(1);
   const [zoom, setZoom] = useState<number>(props.pxPerBeat ?? 64);
   const [loop, setLoop] = useState(false);
   const [warnings, setWarnings] = useState<MeiWarning[]>([]);
@@ -413,9 +419,10 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
         soundsVersionRef.current++;
         setWarnings(score.warnings);
         onLoadRef.current?.(score);
+        setBeatQuarters(tempoBeat(score.meterCount, score.meterUnit));
         if (props.bpm == null) {
           bpmRef.current = score.bpm;
-          setBpm(Math.round(score.bpm));
+          setBpm(score.bpm);
           transportRef.current?.setTempo(score.bpm);
         }
         setMeta({
@@ -876,8 +883,8 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
               <Icon name="lanes" />
             </button>
           )}
-          <label className="mpr-tempo" title="Tempo">
-            <input type="number" min={20} max={400} value={bpm} aria-label="Tempo" onChange={(e) => onBpmChange(parseFloat(e.target.value))} />
+          <label className="mpr-tempo" title={`Tempo, in ${BEAT_NAMES[beatQuarters] ?? "beat"}s a minute`}>
+            <input type="number" min={10} max={400} value={Math.round(bpm / beatQuarters)} aria-label="Tempo" onChange={(e) => onBpmChange(parseFloat(e.target.value) * beatQuarters)} />
             BPM
           </label>
           <span className="mpr-zoom">
@@ -907,7 +914,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
           {meta?.byline ? <span className="mpr-composer">{meta.byline}</span> : null}
           <span className="mpr-spacer" />
           {!multi && soundSelect(0)}
-          <span className="mpr-meta">{bpm} BPM</span>
+          <span className="mpr-meta">{Math.round(bpm / beatQuarters)} BPM</span>
           {notShown}
           {props.openHref ? (
             <a className="mpr-icon" href={props.openHref} target="_blank" rel="noopener" title="Open the full player" aria-label="Open the full player">
