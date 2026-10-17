@@ -149,8 +149,9 @@ npm run stress
 ```
 
 Downloads the MEI project's sample files (about 113 MB, once) into `fixtures/`,
-which git ignores, reads every one, and writes `fixtures/stress-report.md`. It
-takes about two minutes. Its job is to show what breaks, not to pass; see
+which git ignores, reads every one with both readers, compares their notes,
+and writes `fixtures/stress-report.md`. It takes about 20 minutes, most of it
+Verovio's. Its job is to show what breaks, not to pass; see
 [`docs/fixtures.md`](docs/fixtures.md).
 
 ## Layout

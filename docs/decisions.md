@@ -640,6 +640,25 @@ about 8 MB (2.4 MB compressed), downloaded once.
 **Why.** The 2026-10-07 entry: Verovio solves the timing problems the native
 reader reports, and comparing the readers' output measures both. The stress
 test now reads every sample file with both and compares them note by note.
+On the 617 sample files (2026-10-17):
+
+- Verovio reads 314 with nothing left out, against the native reader's 140.
+  Its remaining warnings are mostly repeats it plays once (105 files), notes
+  with no pitch (28), octave lines (20) and ties it can't follow (20).
+- It refuses 146: 119 have no notes to read (headers alone), the other 27
+  are encoded in ways it doesn't take (no top-level `<scoreDef>`, `<parts>`),
+  and on two its engine stops. With "auto", the native result stands.
+- 125 files give the same notes from both. Of the files the native reader
+  reads with no warnings, 51 differ, for three reasons: the native reader
+  ignores tuplets written as `@tuplet` attributes or a `<tupletSpan>`
+  outside the layer, and says nothing (Brahms's quartet, Debussy's
+  *Golliwogg's Cakewalk*, five snippets); encodings whose ties contradict
+  each other, a `<tie>` pointing backwards or two ties sharing an end
+  (Mozart's and Kirnberger's fugues, Krebs, Brandenburg 2/III), which the
+  readers resolve differently; and a note shared by two layers (Schumann).
+- "auto" sends 267 files to Verovio.
+- Verovio is slower: about 18 minutes for every file, against 1.5 for the
+  native reader, so `npm run stress` now takes about 20 minutes.
 
 **License.** Verovio is LGPL-3.0-or-later; Spool is MIT. The library doesn't
 contain Verovio's code: npm installs it as its own package, which a site can
