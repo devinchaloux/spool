@@ -1,15 +1,14 @@
 import { defineConfig } from 'vitest/config'
 
-// The stress test: every MEI sample file through both readers. Separate from
+// The stress test: every MEI sample file through the reader. Separate from
 // `npm run test:run` because it needs the downloaded samples (`npm run samples`)
-// and takes about 20 minutes (both readers); the everyday tests must run
-// offline in seconds.
+// and takes a minute; the everyday tests must run offline in seconds.
 export default defineConfig({
   test: {
     globals: true,
     // Plain Node: the stress test makes its own simulated browser per file.
     environment: 'node',
     include: ['stress/**/*.stress.ts'],
-    testTimeout: 1_800_000,
+    testTimeout: 600_000,
   },
 })

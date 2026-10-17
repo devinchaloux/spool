@@ -1,16 +1,13 @@
 # Decisions
 
-**Status (2026-10-17):** Spool is a public alpha that opens a file from a
+**Status (2026-10-10):** Spool is a public alpha that opens a file from a
 link and shares one as a link or an iframe embed, and plays the sampled
-instruments from its own copy. Both readers work: the native one for clean
-files, and Verovio, downloaded when a file needs it, for repeats, short bars,
-meter and key changes and transposing parts. The player has a sound
+instruments from its own copy. The native reader works, and the player has a sound
 picker, color themes, image export and several instruments in one roll, each
 with its own color and sound. Tied notes sound once and grace notes play
 before their beat. The composer and artist show when the file names them.
-**Next action:** settle which reading plays in `<app>` and `<choice>`, and
-repeats with endings (open questions); annotations once their list is
-settled.
+**Next action:** the second reader (Verovio) for any MEI file; annotations
+once their list is settled.
 
 Each decision gets: date, the choice, the alternatives rejected, and why, so it
 isn't re-litigated later. Entries are binding until a later entry reverses
@@ -588,97 +585,29 @@ kept its level past five seconds with them.
 (`samplesUrl`) get no loop points, so their long sampled notes still stop at
 the recording's end.
 
-### 2026-10-17: the second reader: Verovio times the notes, our rules do the rest
+### 2026-10-17: Verovio draws notation; it doesn't read the timing
 
-**Choice.** `parseVerovio` (`src/mei/parseVerovio.ts`) reads a file with the
-Verovio toolkit (the `verovio` package, 6.3.0, LGPL-3.0-or-later) and takes
-from it when each note starts and ends: bars at their real length, flagged or
-not, meter changes, repeats it plays out, and one reading where the file gives
-several (an `<app>`'s `<lem>`, else its first `<rdg>`; a `<choice>`'s first
-child). Everything else follows the native reader's rules, applied to the
-encoding as Verovio exports it (every element given an id), so both readers
-give the same roll for the same music: pitch from the key signature in force,
-parts, ties, grace notes before the beat, tremolos written out, and the
-credits. Unlike the native reader, it follows key changes and plays
-transposing parts at sounding pitch. Only the opening tempo is used, and it
-says so.
+**Choice.** Verovio is used for what it is built for: engraving the file as
+notation, a view the listener can switch to. The piano roll stays the
+default, and the native reader stays the only reader: it times every note,
+for the roll and the notation alike. This reverses "two readers behind one
+renderer" (2026-10-07) as far as Verovio is concerned.
 
-`readMei(text, reader)` and the player's new `reader` prop choose the reader.
-`"auto"`, the default, reads every file with the native reader first and
-switches to Verovio when that reports a gap Verovio fills: repeats, unflagged
-short bars, mid-piece changes, transposing parts, or editorial markup it skips
-(`skipped:…`). If Verovio can't load or read the file, the native result
-stands, with a warning saying so. The demo reads its files the same way, so
-its image maker draws what the player shows. A tooltip on the player's file
-details says when Verovio read the file.
+**Rejected.** *A second reader on Verovio's timing.* It was built and
+measured on the 617 sample files (branch `claude/sharp-einstein-fjxhrb`, its
+first four commits). Verovio's timing layer had to be worked around at every
+turn: the pitches it reports ignore the key signature and transposition; it
+places grace notes inconsistently, mistimes `copyof` copies and chords whose
+length is written on their notes, plays only the first `<mdiv>` unless asked,
+and doesn't play out repeats with endings. Those are Verovio's to fix, not
+this project's. Spool's own files, short and cleanly encoded, read correctly
+with the native reader.
 
-Verovio is imported only when a file needs it. The library leaves it out of
-its bundle, as it does smplr; the demo's build puts it in a file of its own,
-about 8 MB (2.4 MB compressed), downloaded once.
-
-**Rejected.**
-- *Verovio's own pitches:* the pitch it reports for a note
-  (`getMIDIValuesForElement`) leaves out the key signature and transposition,
-  and querying it note by note took 1.4 s for 2,300 notes.
-- *Verovio's MIDI file:* it transposes, but also ignores the key signature,
-  and no longer says which written note each sound is, so parts and ties are
-  lost.
-- *Verovio's timing of grace notes and tremolos:* against the 2026-10-08
-  decisions, it plays grace notes as slivers (about 30 ms), some on the beat
-  with the main note delayed (`acc`, `unknown`, and some `unacc` at the start
-  of a bar), others by shortening the note before; a `<bTrem>` as one held
-  note and an `<fTrem>` as two halves. Grace notes are taken out before
-  Verovio reads the file and put back by the native reader's rule; tremolos
-  are written out over the span Verovio gives them.
-- *Verovio's reading of two shorthands,* which mistimes the bars around them:
-  a `copyof` copy, timed as if it had no length (a copied chord also sounds
-  one note), and a chord whose length is written on its notes, timed as a
-  quarter. Both are written out in full before Verovio reads the file.
-- *Verovio for every file:* the 2026-10-07 entry's reason holds: small
-  embeds of clean files shouldn't download several megabytes.
-
-**Why.** The 2026-10-07 entry: Verovio solves the timing problems the native
-reader reports, and comparing the readers' output measures both. The stress
-test now reads every sample file with both and compares them note by note.
-On the 617 sample files (2026-10-17):
-
-- Verovio reads 314 with nothing left out, against the native reader's 140.
-  Its remaining warnings are mostly repeats it plays once (105 files), notes
-  with no pitch (28), octave lines (20) and ties it can't follow (20).
-- It refuses 146: 119 have no notes to read (headers alone), the other 27
-  are encoded in ways it doesn't take (no top-level `<scoreDef>`, `<parts>`),
-  and on two its engine stops. With "auto", the native result stands.
-- 125 files give the same notes from both. Of the files the native reader
-  reads with no warnings, 51 differ, for three reasons: the native reader
-  ignores tuplets written as `@tuplet` attributes or a `<tupletSpan>`
-  outside the layer, and says nothing (Brahms's quartet, Debussy's
-  *Golliwogg's Cakewalk*, five snippets); encodings whose ties contradict
-  each other, a `<tie>` pointing backwards or two ties sharing an end
-  (Mozart's and Kirnberger's fugues, Krebs, Brandenburg 2/III), which the
-  readers resolve differently; and a note shared by two layers (Schumann).
-- "auto" sends 267 files to Verovio.
-- Verovio is slower: about 18 minutes for every file, against 1.5 for the
-  native reader, so `npm run stress` now takes about 20 minutes.
-
-**License.** Verovio is LGPL-3.0-or-later; Spool is MIT. The library doesn't
-contain Verovio's code: npm installs it as its own package, which a site can
-update or replace. The hosted demo serves Verovio's unmodified build as a
-separate file.
-
-Like the native reader, it plays every movement (`<mdiv>`) one after
-another; Verovio plays only the first unless asked. A note written in two
-layers (one points to the other with `sameas`) sounds once, where the native
-reader sounds it twice.
-
-**Known gaps.**
-- Verovio 6.3.0 doesn't play out repeats with first and second endings, or a
-  repeat at the end of its section; those files still report "Repeats play
-  once." Played once, a repeat sometimes skips its first ending, as a
-  performance without repeats would; the warning then says so.
-- In a `<choice>`, Verovio plays the first child, which is the error when a
-  `<sic>` comes before its `<corr>`. Which reading plays is an open question.
-- Octave lines (`<octave>`) play at written pitch in both readers. The native
-  reader skipped them without a word; it now reports them, like Verovio's.
+**Kept from it.** The comparison found gaps in the native reader: it skipped
+octave lines without a word (it now reports them), and it ignores tuplets
+written as `@tuplet` attributes or as a `<tupletSpan>` beside the layer,
+silently, so those bars run long (Brahms's quartet and Debussy's *Golliwogg's
+Cakewalk* among the samples; not fixed yet).
 
 ## Open questions
 
@@ -686,5 +615,3 @@ reader sounds it twice.
 |---|---|
 | How is the roll drawn, and how does it make sound? | Settled by the existing prototype for now (canvas; the browser's own audio); revisit only if the move shows a reason |
 | Which MEI elements does the roll handle first? | Notes, rests, ties and several staves first; list the rest as known gaps |
-| Which reading plays where the file gives several (`<app>`, `<choice>`)? | Verovio's default now (the `<lem>` or first `<rdg>`; a `<choice>`'s first child); or prefer `<corr>`, `<reg>` and `<expan>`; or let the listener pick |
-| Repeats Verovio doesn't play out (with endings, or ending a section) | Leave them reported; or work out the order ourselves and hand Verovio an `<expansion>`, which it plays |

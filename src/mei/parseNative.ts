@@ -9,9 +9,8 @@ import type { MeiBar, MeiNote, MeiPart, MeiScore, MeiWarning } from './types'
  * into MeiNote records, joining tied notes and placing grace notes just before
  * their beat. What it cannot do (repeats, unmarked short bars, mid-piece
  * changes, transposing instruments) it reports as warnings rather than hiding.
- * Files that need those go to the second reader, src/mei/parseVerovio.ts,
- * which follows the rules exported here for pitch, parts, ties, grace notes,
- * tremolos and credits, so both readers draw a file the same way.
+ * Files that need those go to the second reader, not built yet
+ * (docs/decisions.md).
  *
  * Browser only: it uses the browser's DOMParser. Tests run it under jsdom.
  * ======================================================================== */
@@ -31,7 +30,7 @@ const SILENT_IN_LAYER = new Set(['clef', 'clefGrp', 'barLine', 'custos', 'sb', '
 // ── Warnings ──
 
 /** Collects one warning per kind, counting repeats. */
-export class Warnings {
+class Warnings {
   private byCode = new Map<string, MeiWarning>()
 
   add(code: string, message: string, times = 1): void {
@@ -47,7 +46,7 @@ export class Warnings {
 
 // ── DOM helpers ──
 
-export function childrenNamed(parent: Element, name: string): Element[] {
+function childrenNamed(parent: Element, name: string): Element[] {
   const out: Element[] = []
   for (const c of Array.from(parent.children)) if (c.localName === name) out.push(c)
   return out
@@ -55,14 +54,14 @@ export function childrenNamed(parent: Element, name: string): Element[] {
 
 // Files are meant to use the MEI namespace, but some older or hand-made ones
 // don't; fall back to plain tag names so those still read.
-export function firstDeep(root: Document | Element, name: string): Element | null {
+function firstDeep(root: Document | Element, name: string): Element | null {
   const ns = root.getElementsByTagNameNS(MEI_NS, name)
   if (ns.length) return ns[0]
   const plain = root.getElementsByTagName(name)
   return plain.length ? plain[0] : null
 }
 
-export function allDeep(root: Document | Element, name: string): Element[] {
+function allDeep(root: Document | Element, name: string): Element[] {
   let list = root.getElementsByTagNameNS(MEI_NS, name)
   if (!list.length) list = root.getElementsByTagName(name)
   return Array.from(list)
@@ -94,7 +93,7 @@ function keysigAlter(keysig: string | null, pname: string): number {
   return 0
 }
 
-export function noteToMidi(noteEl: Element, keysig: string | null): number | null {
+function noteToMidi(noteEl: Element, keysig: string | null): number | null {
   const pname = (noteEl.getAttribute('pname') || '').toLowerCase()
   const oct = parseInt(noteEl.getAttribute('oct') || '', 10)
   if (!(pname in STEP) || isNaN(oct)) return null
@@ -125,7 +124,7 @@ export function isBlackKey(midi: number): boolean {
 
 // MEI's @dur is the note value's denominator (4 = quarter, 8 = eighth); the roll
 // counts in quarter-note beats, so a quarter is 1 and a half is 2.
-export function durToBeats(node: Element, scale: number, warn: Warnings): number {
+function durToBeats(node: Element, scale: number, warn: Warnings): number {
   const durAttr = node.getAttribute('dur')
   if (!durAttr) {
     warn.add('no-dur', 'Notes without a written length take no time.')
@@ -158,7 +157,7 @@ interface LayerState {
 
 // Every note by its xml:id, and the notes a tie starts from, for joining tied
 // notes once the whole file is read.
-export interface TieIndex {
+interface TieIndex {
   byId: Map<string, MeiNote>
   starts: Set<MeiNote>
 }
@@ -206,7 +205,7 @@ function strike(notes: (MeiNote | null)[], start: number, env: LayerEnv): void {
 
 // Some files write the duration on each note of a chord instead of on the
 // chord itself; then take it from the first note that has one.
-export function durSourceOf(chord: Element): Element {
+function durSourceOf(chord: Element): Element {
   return chord.getAttribute('dur') ? chord : childrenNamed(chord, 'note').find((n) => n.getAttribute('dur')) ?? chord
 }
 
@@ -297,7 +296,7 @@ function walkLayer(node: Element, ctx: { t: number }, env: LayerEnv, scale: numb
 // The repeated unit, in beats, or null for an unmeasured tremolo. A unit no
 // shorter than the tremolo itself can't be right (one file gives measperf="1",
 // a whole note, for a dotted quarter), so the next source is tried.
-export function tremoloUnit(trem: Element, first: Element, span: number, scale: number): number | null {
+function tremoloUnit(trem: Element, first: Element, span: number, scale: number): number | null {
   const fromValue = (attr: string) => {
     const unit = parseFloat(trem.getAttribute(attr) ?? '')
     return unit > 0 ? (4 / unit) * scale : null
@@ -349,7 +348,7 @@ function walkTremolo(trem: Element, ctx: { t: number }, env: LayerEnv, scale: nu
 // notes at each end, or a note marked tie="i" or "m", which continues into the
 // next note of the same pitch in the same part, starting where it ends.
 
-export function joinTies(notes: MeiNote[], ties: TieIndex, music: Document | Element, warn: Warnings): MeiNote[] {
+function joinTies(notes: MeiNote[], ties: TieIndex, music: Document | Element, warn: Warnings): MeiNote[] {
   const key = (part: number, midi: number, beat: number) => `${part}:${midi}:${Math.round(beat * 1e6)}`
   const byOnset = new Map<string, MeiNote>()
   const byEnd = new Map<string, MeiNote>()
@@ -458,7 +457,7 @@ interface OpeningMeter {
 // Order of preference: a staff's own meter (any staff, not only the first),
 // then the score's, then a <meterSig> anywhere in the opening definitions, then
 // the work's meter in the file's header (<meiHead>), which some files give only there.
-export function openingMeter(scoreDef: Element | null, doc: Document): OpeningMeter {
+function openingMeter(scoreDef: Element | null, doc: Document): OpeningMeter {
   const staffDefs = scoreDef ? allDeep(scoreDef, 'staffDef') : []
   const candidates: Element[] = [
     ...staffDefs.filter((d) => d.getAttribute('meter.count') || d.getAttribute('meter.sym')),
@@ -488,7 +487,7 @@ function meterFrom(countText: string | null, unitText: string | null, sym: strin
   return { count: 4, unit: 4, found: false }
 }
 
-export function keyOf(def: Element | null): string | null {
+function keyOf(def: Element | null): string | null {
   if (!def) return null
   return firstAttr([def], 'keysig', 'key.sig') ?? childrenNamed(def, 'keySig')[0]?.getAttribute('sig') ?? null
 }
@@ -558,7 +557,7 @@ function nameOfGroup(grp: Element): string {
 // names are used for staves that have none of their own, and only when the
 // list numbers exactly the score's staves, so a list of a different shape
 // (one entry per section, say) never names the wrong staff.
-export function listedInstruments(head: Element | null, scoreDef: Element | null): Map<string, string> {
+function listedInstruments(head: Element | null, scoreDef: Element | null): Map<string, string> {
   const staves = new Set((scoreDef ? allDeep(scoreDef, 'staffDef') : []).map((d) => d.getAttribute('n') ?? ''))
   for (const list of head ? allDeep(head, 'perfResList') : []) {
     const named = new Map(childrenNamed(list, 'perfRes').map((r) => [r.getAttribute('n') ?? '', textOf(r)]))
@@ -567,7 +566,7 @@ export function listedInstruments(head: Element | null, scoreDef: Element | null
   return new Map()
 }
 
-export class PartTable {
+class PartTable {
   readonly parts: MeiPart[] = []
   private byStaff = new Map<string, number>()
 
@@ -623,7 +622,7 @@ export class PartTable {
 
 // Parts with no notes (an empty staff, a staff of rests) are dropped, so every
 // part a player lists can be heard. Notes are renumbered to match.
-export function keepSoundingParts(parts: MeiPart[], notes: MeiNote[]): MeiPart[] {
+function keepSoundingParts(parts: MeiPart[], notes: MeiNote[]): MeiPart[] {
   const used = new Set(notes.map((n) => n.part))
   const renumber = new Map<number, number>()
   const kept: MeiPart[] = []
@@ -728,19 +727,6 @@ function creditedNames(doc: Document, roles: Set<string>, element?: string): str
   return ''
 }
 
-/** The title, composer and artist the file names. */
-export function credits(doc: Document): Pick<MeiScore, 'title' | 'composer' | 'artist'> {
-  // The title's own words: a <titlePart> inside it ("op. 41", "an electronic
-  // transcription") would otherwise run into them without a space.
-  const titleEl = firstDeep(doc, 'title')
-  const ownWords = titleEl ? Array.from(titleEl.childNodes).filter((n) => n.nodeType === 3).map((n) => n.textContent ?? '').join(' ').replace(/\s+/g, ' ').trim() : ''
-  return {
-    title: ownWords || textOf(titleEl ?? undefined) || 'Untitled',
-    composer: creditedNames(doc, COMPOSER_ROLES, 'composer'),
-    artist: creditedNames(doc, ARTIST_ROLES),
-  }
-}
-
 // ── Entry point ──
 
 export function parseNative(xmlText: string): MeiScore {
@@ -749,7 +735,14 @@ export function parseNative(xmlText: string): MeiScore {
   if (perr) throw new Error('XML parse error: ' + (perr.textContent || '').trim())
 
   const warn = new Warnings()
-  const { title, composer, artist } = credits(doc)
+
+  // The title's own words: a <titlePart> inside it ("op. 41", "an electronic
+  // transcription") would otherwise run into them without a space.
+  const titleEl = firstDeep(doc, 'title')
+  const ownWords = titleEl ? Array.from(titleEl.childNodes).filter((n) => n.nodeType === 3).map((n) => n.textContent ?? '').join(' ').replace(/\s+/g, ' ').trim() : ''
+  const title = ownWords || textOf(titleEl ?? undefined) || 'Untitled'
+  const composer = creditedNames(doc, COMPOSER_ROLES, 'composer')
+  const artist = creditedNames(doc, ARTIST_ROLES)
 
   // Only the music itself: a file's header can quote an incipit (its opening
   // bars) in full, and those bars must not be read as the start of the piece.
@@ -842,6 +835,5 @@ export function parseNative(xmlText: string): MeiScore {
     parts: keepSoundingParts(partTable.parts, notes),
     notes,
     warnings: warn.list(),
-    reader: 'native',
   }
 }

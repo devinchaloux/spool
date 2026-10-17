@@ -22,10 +22,8 @@ tremolos play as the repeated notes they stand for. A file with
 several instruments shows each in its own color, on one roll or one lane per
 part, with mute, solo, a color and a sound for each, starting from the
 instruments the file names. The composer, and the artist for a song, show
-beside the title when the file names them. **2026-10-17:** the second
-reader, Verovio, reads files the first leaves gaps in (repeats, short bars,
-meter and key changes, transposing parts); it is downloaded only when a file
-needs it. Nothing is published to npm yet.
+beside the title when the file names them. The second reader, for everything
+else, is not built yet. Nothing is published to npm yet.
 
 ## Try it
 
@@ -112,22 +110,16 @@ import { MeiPianoRoll } from 'mei-piano-roll'
 | `partColors` | One color per part, in score order; default the note color, then quick-pick colors |
 | `separateParts` | Start with each part on its own roll; default `false` |
 | `height`, `pxPerBeat`, `bpm` | Size, starting zoom, and a tempo override in quarter notes a minute (the player shows tempo in the beat a listener feels: half notes in 2/2, dotted quarters in 6/8) |
-| `reader` | `"auto"` (default): the built-in reader, or Verovio when the file has what the built-in reader leaves out (repeats, meter and key changes, transposing parts, editorial markup); Verovio is downloaded the first time a file needs it. `"native"`: the built-in reader only. `"verovio"`: Verovio always |
 | `onLoad` | Called with the parsed score, warnings included |
 
 Also exported: `NOTE_COLORS`, eight quick-pick note colors that adjust for
-light and dark themes; `readMei(xml, reader)` for the note data without the
-player, as the player reads it (`parseNative(xml)` and `parseVerovio(xml)` run
-one reader); and `rollToSvg(score, options)` for still images (`partColors`,
-`separateParts` and `fadedParts` match the player's view of several parts).
-Drawing needs no browser, so a site's build can draw pictures straight from its
-files; reading the MEI does need an XML parser, which Node lacks, so a build
-gives the readers one first, such as jsdom's `DOMParser` (the stress test does
+light and dark themes; `parseNative(xml)` for the note data without the player; and
+`rollToSvg(score, options)` for still images (`partColors`, `separateParts` and
+`fadedParts` match the player's view of several parts). Drawing needs no
+browser, so a site's build can draw pictures straight from its files; reading
+the MEI does need an XML parser, which Node lacks, so a build gives
+`parseNative` one first, such as jsdom's `DOMParser` (the stress test does
 this, in `stress/samples.stress.ts`).
-
-The second reader is [Verovio](https://www.verovio.org) (LGPL-3.0), installed
-with the package as its own dependency and loaded only when a file needs it:
-about 2.4 MB compressed, once.
 
 Sampled instruments are FluidR3 GM by Frank Wen (CC BY 3.0), played by
 [smplr](https://github.com/danigb/smplr); the player credits them whenever one
@@ -149,9 +141,8 @@ npm run stress
 ```
 
 Downloads the MEI project's sample files (about 113 MB, once) into `fixtures/`,
-which git ignores, reads every one with both readers, compares their notes,
-and writes `fixtures/stress-report.md`. It takes about 20 minutes, most of it
-Verovio's. Its job is to show what breaks, not to pass; see
+which git ignores, reads every one, and writes `fixtures/stress-report.md`. It
+takes about two minutes. Its job is to show what breaks, not to pass; see
 [`docs/fixtures.md`](docs/fixtures.md).
 
 ## Layout

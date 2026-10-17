@@ -4,10 +4,10 @@ Instructions for Claude Code in this repository. They apply to anyone working
 on Spool with Claude; the maintainer's own session instructions load
 from a private file through the import at the end.
 
-**Current state (2026-10-17):** both readers (the native one, and Verovio
-for files that need it) and the player work, several instruments included,
-with unit tests, a demo page (`npm run dev`) and a stress test that compares
-the readers over the MEI project's sample files (`npm run stress`).
+**Current state (2026-10-08):** the native reader and the player work,
+several instruments included, with unit tests, a demo page (`npm run dev`) and
+a stress test over the MEI project's sample files (`npm run stress`). The
+second reader is not built.
 `docs/decisions.md` lists what is decided and what is open.
 
 ---
@@ -46,9 +46,7 @@ code.
 - **`src/mei/`** reads MEI into `MeiScore` (`src/mei/types.ts`): notes in
   quarter-note beats, plus **warnings** for anything the reader drops,
   simplifies or guesses. Every reader returns this one shape. No UI here, and it
-  is unit-tested in `src/test/`. `parseVerovio.ts` takes only timing from
-  Verovio and reuses the native reader's rules for the rest; `read.ts` picks
-  the reader.
+  is unit-tested in `src/test/`.
 - **`src/roll/MeiPianoRoll.tsx`** only draws (one canvas) and plays what a
   reader returns, and lists the warnings under the roll. Colors come from
   `src/roll/themes.ts`.

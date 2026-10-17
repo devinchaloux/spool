@@ -69,6 +69,4 @@ export interface MeiScore {
   parts: MeiPart[]
   notes: MeiNote[]
   warnings: MeiWarning[]
-  /** Which reader read the file: the built-in one, or Verovio. */
-  reader: 'native' | 'verovio'
 }
