@@ -22,8 +22,11 @@ tremolos play as the repeated notes they stand for. A file with
 several instruments shows each in its own color, on one roll or one lane per
 part, with mute, solo, a color and a sound for each, starting from the
 instruments the file names. The composer, and the artist for a song, show
-beside the title when the file names them. The second reader, for everything
-else, is not built yet. Nothing is published to npm yet.
+beside the title when the file names them. **2026-10-17:** a Notation button
+swaps the roll for the music in traditional notation, on a paper background,
+lighting each note as it sounds and scrolling with the playhead; Verovio
+draws it, downloaded only when the button is first pressed. Nothing is
+published to npm yet.
 
 ## Try it
 
@@ -101,6 +104,8 @@ import { MeiPianoRoll } from 'mei-piano-roll'
 | `openHref` | Compact player only: an address its expand button opens in a new tab, instead of opening the full player in place |
 | `variant` | `"full"` (default): the roll with its controls underneath. `"compact"`: a play button over the roll and a caption line with play/pause, the title and the composer; it opens into the full player |
 | `header` | Show the title line above the full player; default `true` |
+| `notation` | Offer the Notation button, which shows the file in traditional notation, drawn by [Verovio](https://www.verovio.org) (LGPL-3.0, about 2.4 MB, downloaded the first time a listener presses it); default `true` |
+| `view` | The view the player opens in: `"roll"` (default) or `"notation"` |
 | `sound` | Starting sound for every part, by id (see `SOUNDS`); default each part's nearest sound to the instrument the file names, else the square lead |
 | `partSounds` | Starting sound for each part, by id, in score order; takes precedence over `sound` |
 | `samplesUrl` | Where the sampled instruments are hosted: a folder of FluidR3 `<instrument>-mp3.js` files, and optionally `<instrument>-loop.json` loop points so held notes sustain, ending in `/`; default the volunteer-run site smplr uses (no loop points) |

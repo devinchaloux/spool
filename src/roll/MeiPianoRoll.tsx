@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { parseNative, midiName, isBlackKey } from "../mei/parseNative";
 import type { MeiPart, MeiScore, MeiWarning } from "../mei/types";
 import { SoundEngine, type SoundStatus } from "../audio/engine";
@@ -6,11 +6,13 @@ import { tempoBeat, BEAT_NAMES } from "./tempo";
 import { Transport } from "../audio/transport";
 import { SOUNDS, DEFAULT_SOUND, SAMPLE_CREDIT, findSound } from "../audio/sounds";
 import { soundForPart } from "../audio/instruments";
-import { resolveTheme, shade, type RollTheme, type ThemeName } from "./themes";
+import { resolveTheme, shade, THEMES, type RollTheme, type ThemeName } from "./themes";
 import { partColors as defaultPartColors } from "./noteColors";
 import { layoutLanes, widestLaneRows, MIN_LANE_HEIGHT, MIN_ROW_HEIGHT, type Lane } from "./lanes";
 import { rollToSvg } from "../render/svg";
 import { svgToPng, downloadBlob } from "../render/toPng";
+import { withNoteIds } from "../mei/noteIds";
+import NotationView from "../notation/NotationView";
 
 /* ===========================================================================
  * MeiPianoRoll — an embeddable MEI piano-roll player.
@@ -21,7 +23,9 @@ import { svgToPng, downloadBlob } from "../render/toPng";
  * and plays it with a choice of sounds: built-in synths, or sampled instruments
  * downloaded when chosen (src/audio/). Colors come from a theme (./themes.ts).
  * A file with several parts (instruments) shows each in its own color, on one
- * roll or one lane per part, with mute, solo and a sound for each.
+ * roll or one lane per part, with mute, solo and a sound for each. A toggle
+ * swaps the roll for the music in notation, drawn by Verovio on request
+ * (src/notation/), lit and followed by the same playhead.
  *
  * Usage:
  *   <MeiPianoRoll meiText={xmlString} />
@@ -81,6 +85,14 @@ export interface MeiPianoRollProps {
    * frame, where the full player wouldn't fit.
    */
   openHref?: string;
+  /**
+   * Offer the notation view: the file in traditional notation, drawn by
+   * Verovio, which downloads (about 2.4 MB) the first time a listener opens
+   * it. Default true.
+   */
+  notation?: boolean;
+  /** The view the player opens in: "roll" (default) or "notation". */
+  view?: "roll" | "notation";
   /** Show the title line above the full player. Default true. */
   header?: boolean;
   className?: string;
@@ -180,6 +192,14 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
   const [loop, setLoop] = useState(false);
   const [warnings, setWarnings] = useState<MeiWarning[]>([]);
   const [showWarnings, setShowWarnings] = useState(false);
+  // The piano roll or the notation, and the file as the notation view draws
+  // it: with an id on every note, so both views name a note the same way.
+  const offersNotation = props.notation !== false;
+  const [view, setView] = useState<"roll" | "notation">(offersNotation && props.view === "notation" ? "notation" : "roll");
+  const [fileText, setFileText] = useState("");
+  const [notationLoad, setNotationLoad] = useState<{ status: "loading" | "ready" | "error"; message: string }>({ status: "ready", message: "" });
+  // Set by the notation view while it shows; the draw loop hands it the playhead.
+  const notationFrameRef = useRef<((beat: number, playing: boolean) => void) | null>(null);
   // The compact player opens into the full one in place.
   const [expanded, setExpanded] = useState(false);
   const layout = props.variant === "compact" && !expanded ? "compact" : "full";
@@ -225,6 +245,18 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
   useEffect(() => { separateRef.current = separate; drawRef.current(); }, [separate]);
   // Opening or closing the compact player swaps the readouts; fill the new ones.
   useEffect(() => { drawRef.current(); }, [layout]);
+  // Back on the roll, it shows where the playhead is; either way, one frame
+  // brings the new view up to date.
+  useEffect(() => {
+    // Before a file loads the draw loop isn't set up yet, and nothing to show.
+    if (!scoreRef.current) return;
+    if (view === "roll") {
+      const cv = canvasRef.current;
+      const t = tx.current;
+      if (cv) t.offsetX = t.targetOffsetX = Math.max(0, t.beat * pxRef.current - (cv.clientWidth - KEY_W) * 0.38);
+    }
+    startLoopIfNeeded();
+  }, [view, notationLoad.status]);
 
   // ---- Colors ------------------------------------------------------------
   // Follow the page's --accent live: a site's theme or accent switch changes
@@ -244,6 +276,9 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
   const noteColor = props.accent ?? pageAccent ?? theme.note;
   const colors = props.partColors?.length ? props.partColors : defaultPartColors(Math.max(parts.length, 1), theme, noteColor);
   const colorsKey = colors.join(",");
+  // Notation is on paper whatever the theme, so its parts take the strengths
+  // that read on a light background, unless the page chose the colors.
+  const paperColors = props.partColors?.length ? props.partColors : defaultPartColors(Math.max(parts.length, 1), THEMES.paper, props.accent ?? pageAccent ?? THEMES.paper.note);
   useEffect(() => {
     themeRef.current = theme;
     colorsRef.current = colorsKey.split(",");
@@ -400,6 +435,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
           text = await res.text();
         }
         if (!text) throw new Error("No MEI file given.");
+        if (offersNotation) text = withNoteIds(text);
         const score = parseNative(text);
         if (canceled) return;
         scoreRef.current = score;
@@ -418,6 +454,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
         setPartSounds(partSoundsRef.current);
         soundsVersionRef.current++;
         setWarnings(score.warnings);
+        setFileText(text);
         onLoadRef.current?.(score);
         setBeatQuarters(tempoBeat(score.meterCount, score.meterUnit));
         if (props.bpm == null) {
@@ -636,10 +673,18 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
       ctx.lineTo(KEY_W + 0.5, cssH);
       ctx.stroke();
 
-      if (positionRef.current) positionRef.current.textContent = positionLabel(score, t.beat);
-      if (progressRef.current) progressRef.current.style.width = `${score.totalBeats ? (t.beat / score.totalBeats) * 100 : 0}%`;
+      readouts();
     };
     drawRef.current = draw;
+
+    // The position and progress readouts, which the notation view shows too.
+    const readouts = () => {
+      const score = scoreRef.current;
+      if (!score) return;
+      const beat = tx.current.beat;
+      if (positionRef.current) positionRef.current.textContent = positionLabel(score, beat);
+      if (progressRef.current) progressRef.current.style.width = `${score.totalBeats ? (beat / score.totalBeats) * 100 : 0}%`;
+    };
 
     const frame = () => {
       const t = tx.current;
@@ -663,6 +708,8 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
       }
 
       draw();
+      readouts();
+      notationFrameRef.current?.(t.beat, !!transport?.playing);
 
       const animating = !!transportRef.current?.playing || Math.abs(t.targetOffsetX - t.offsetX) > 0.4;
       t.raf = animating ? requestAnimationFrame(frame) : 0;
@@ -781,6 +828,12 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
     downloadBlob(await svgToPng(svg, width, imgHeight, 2), `${name}.png`);
   }
 
+  // The notation view takes the canvas's keys.
+  const onNotationKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Home") { e.preventDefault(); toStart(); }
+    else if (e.key === " " || e.key === "Spacebar") { e.preventDefault(); togglePlay(); }
+  };
+
   const onBpmChange = (v: number) => {
     if (!(v > 0)) return;
     setBpm(v);
@@ -810,6 +863,19 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
       ))}
     </select>
   );
+  const notationToggle = offersNotation && (
+    <button
+      className="mpr-icon"
+      onClick={() => setView((v) => (v === "roll" ? "notation" : "roll"))}
+      disabled={!ready}
+      aria-pressed={view === "notation"}
+      title="Notation"
+      aria-label="Notation"
+    >
+      <Icon name="notation" />
+    </button>
+  );
+  const onRoll = view === "roll";
   // The roll never hides what it leaves out (docs/decisions.md).
   const notShown = ready && warnings.length > 0 && (
     <button
@@ -852,10 +918,23 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
         <canvas
           ref={canvasRef}
           className="mpr-canvas"
-          style={{ height: canvasHeight, background: theme.background }}
+          style={{ height: canvasHeight, background: theme.background, display: onRoll ? undefined : "none" }}
           tabIndex={0}
           title="Drag or scroll to move. Click to set the playhead. Space plays; Home returns to the start."
         />
+        {!onRoll && ready && scoreRef.current && (
+          <NotationView
+            text={fileText}
+            score={scoreRef.current}
+            colors={paperColors}
+            audible={parts.length ? parts.map((_p, i) => isAudible(i)) : [true]}
+            height={height}
+            frameRef={notationFrameRef}
+            onSeek={seekToBeat}
+            onKeyDown={onNotationKey}
+            onStatus={(st, message = "") => setNotationLoad({ status: st, message })}
+          />
+        )}
         {layout === "compact" && ready && !playing && (
           <button className="mpr-overlay" onClick={togglePlay} aria-label="Play" title="Play (Space)">
             <Icon name="play" size={26} />
@@ -878,7 +957,8 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
           <span className="mpr-position" ref={positionRef} title="Bar and beat" />
           <span className="mpr-spacer" />
           {!multi && soundSelect(0)}
-          {multi && (
+          {notationToggle}
+          {multi && onRoll && (
             <button className="mpr-icon" onClick={() => setSeparate((v) => !v)} aria-pressed={separate} title="Each part on its own roll" aria-label="Separate parts">
               <Icon name="lanes" />
             </button>
@@ -887,17 +967,19 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
             <input type="number" min={10} max={400} value={Math.round(bpm / beatQuarters)} aria-label="Tempo" onChange={(e) => onBpmChange(parseFloat(e.target.value) * beatQuarters)} />
             BPM
           </label>
-          <span className="mpr-zoom">
+          {onRoll && <span className="mpr-zoom">
             <button className="mpr-icon" onClick={() => setZoom((z) => clamp(Math.round(z / 1.25), 28, 160))} title="Zoom out" aria-label="Zoom out">
               <Icon name="minus" />
             </button>
             <button className="mpr-icon" onClick={() => setZoom((z) => clamp(Math.round(z * 1.25), 28, 160))} title="Zoom in" aria-label="Zoom in">
               <Icon name="plus" />
             </button>
-          </span>
-          <button className="mpr-icon" onClick={saveImage} disabled={!ready} title="Save the visible bars as a PNG" aria-label="Save image">
-            <Icon name="image" />
-          </button>
+          </span>}
+          {onRoll && (
+            <button className="mpr-icon" onClick={saveImage} disabled={!ready} title="Save the visible bars as a PNG" aria-label="Save image">
+              <Icon name="image" />
+            </button>
+          )}
           {notShown}
           {props.variant === "compact" && (
             <button className="mpr-icon" onClick={() => setExpanded(false)} title="Back to the small player" aria-label="Back to the small player">
@@ -916,6 +998,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
           {!multi && soundSelect(0)}
           <span className="mpr-meta">{Math.round(bpm / beatQuarters)} BPM</span>
           {notShown}
+          {notationToggle}
           {props.openHref ? (
             <a className="mpr-icon" href={props.openHref} target="_blank" rel="noopener" title="Open the full player" aria-label="Open the full player">
               <Icon name="expand" />
@@ -931,10 +1014,12 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
       {/* Only what needs saying: loading, and errors. How to use the roll is in
           the canvas tooltip. */}
       {layout === "full" && partRows}
-      {(status !== "ready" || soundLoad.status !== "ready") && (
-        <div className={"mpr-status" + (status === "error" || soundLoad.status === "error" ? " mpr-error" : "")}>
+      {(status !== "ready" || soundLoad.status !== "ready" || (!onRoll && notationLoad.status !== "ready")) && (
+        <div className={"mpr-status" + (status === "error" || soundLoad.status === "error" || (!onRoll && notationLoad.status === "error") ? " mpr-error" : "")}>
           {status === "loading" && "Loading…"}
           {status === "error" && errMsg}
+          {ready && !onRoll && notationLoad.status === "loading" && "Loading notation…"}
+          {ready && !onRoll && notationLoad.status === "error" && notationLoad.message}
           {ready && soundLoad.status === "loading" && `Loading ${soundLabels}…`}
           {ready && soundLoad.status === "error" && `Couldn't load ${soundLabels}. Try again or choose a synth.`}
         </div>
@@ -957,7 +1042,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
 // ── Icons ──
 // Drawn inline so the player needs no icon font or image files.
 
-type IconName = "play" | "pause" | "start" | "loop" | "minus" | "plus" | "image" | "expand" | "collapse" | "lanes";
+type IconName = "play" | "pause" | "start" | "loop" | "minus" | "plus" | "image" | "expand" | "collapse" | "lanes" | "notation";
 
 function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   const solid = name === "play" || name === "pause";
@@ -983,6 +1068,7 @@ function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
       {name === "expand" && <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />}
       {name === "collapse" && <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7" />}
       {name === "lanes" && <><rect x="3" y="4" width="18" height="6" rx="1.5" /><rect x="3" y="14" width="18" height="6" rx="1.5" /></>}
+      {name === "notation" && <><path d="M3 6h18M3 10h18M3 14h18M3 18h18" strokeWidth={1.2} /><ellipse cx="9" cy="16" rx="2.6" ry="2" fill="currentColor" stroke="none" /><path d="M11.4 16V4.5" /></>}
     </svg>
   );
 }
@@ -1008,6 +1094,11 @@ const CSS = `
 .mpr-stage { position: relative; }
 .mpr-canvas { display: block; width: 100%; touch-action: none; outline: none; }
 .mpr-canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--mpr-accent); }
+.mpr-notation { display: flex; overflow: auto; outline: none; cursor: grab; touch-action: pan-x pan-y; }
+.mpr-notation:focus-visible { box-shadow: inset 0 0 0 2px var(--mpr-accent); }
+.mpr-notation > svg { flex: none; margin: auto 8px; }
+.mpr-notation g.note { cursor: pointer; }
+.mpr-notation g.note.mpr-sounding { fill: var(--mpr-lit); color: var(--mpr-lit); }
 
 .mpr-bar, .mpr-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--mpr-border); }
 .mpr-foot { gap: 12px; padding: 8px 12px; }
