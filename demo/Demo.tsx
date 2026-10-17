@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { MeiPianoRoll, THEMES, NOTE_COLORS, noteColorFor, partColors, parseNative, rollToSvg, svgToPng, downloadBlob, type MeiScore, type ThemeName } from '../src'
+import { MeiPianoRoll, THEMES, NOTE_COLORS, noteColorFor, partColors, readMei, rollToSvg, svgToPng, downloadBlob, type MeiScore, type ThemeName } from '../src'
 import { EXAMPLE_MEI } from './example'
 import { embedCode, fetchMei, fileNameOf, readParams, shareLink, type ShareSettings } from './share'
 import { DEFAULT_FILE, ISSUES_URL, SAMPLES_URL, SITE_TOKENS } from './site'
@@ -45,9 +45,13 @@ export default function Demo() {
   const [sounds, setSounds] = useState<string[] | undefined>(START.sounds.length ? START.sounds : undefined)
   const [tab, setTab] = useState<Tab>('player')
   // Read here as well as in the player, so the page header and the image maker
-  // have the score whichever tab is open.
-  const score = useMemo<MeiScore | null>(() => {
-    try { return parseNative(text) } catch { return null }
+  // have the score whichever tab is open. Same reader as the player, so a file
+  // Verovio reads gives the same image.
+  const [score, setScore] = useState<MeiScore | null>(null)
+  useEffect(() => {
+    let current = true
+    readMei(text).then((s) => { if (current) setScore(s) }, () => { if (current) setScore(null) })
+    return () => { current = false }
   }, [text])
   const partCount = Math.max(score?.parts.length ?? 1, 1)
   const noteColor = colors[0] ?? THEMES[theme].note

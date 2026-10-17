@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { parseNative, midiName, isBlackKey } from "../mei/parseNative";
+import { midiName, isBlackKey } from "../mei/parseNative";
+import { readMei, type ReaderChoice } from "../mei/read";
 import type { MeiPart, MeiScore, MeiWarning } from "../mei/types";
 import { SoundEngine, type SoundStatus } from "../audio/engine";
 import { tempoBeat, BEAT_NAMES } from "./tempo";
@@ -15,7 +16,8 @@ import { svgToPng, downloadBlob } from "../render/toPng";
 /* ===========================================================================
  * MeiPianoRoll — an embeddable MEI piano-roll player.
  *
- * Reads MEI with the native reader (src/mei/parseNative.ts), draws a DAW-style
+ * Reads MEI with the native reader (src/mei/parseNative.ts), or with Verovio
+ * when the file needs it (src/mei/read.ts), draws a DAW-style
  * piano roll on a single fixed canvas (camera/offset based, so scrolling +
  * playback-follow are smooth — no giant scroll-canvas, no scrollLeft jumps),
  * and plays it with a choice of sounds: built-in synths, or sampled instruments
@@ -81,6 +83,13 @@ export interface MeiPianoRollProps {
    * frame, where the full player wouldn't fit.
    */
   openHref?: string;
+  /**
+   * Which reader reads the file. "auto" (default): the built-in reader, or
+   * Verovio, downloaded the first time, when the file has what the built-in
+   * reader leaves out (repeats, meter and key changes, transposing parts…).
+   * "native": the built-in reader only. "verovio": Verovio always.
+   */
+  reader?: ReaderChoice;
   /** Show the title line above the full player. Default true. */
   header?: boolean;
   className?: string;
@@ -169,7 +178,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
 
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [errMsg, setErrMsg] = useState("");
-  const [meta, setMeta] = useState<{ title: string; byline: string; line: string } | null>(null);
+  const [meta, setMeta] = useState<{ title: string; byline: string; line: string; reader: MeiScore["reader"] } | null>(null);
   const [playing, setPlaying] = useState(false);
   // Tempo is kept in quarter notes a minute, as the transport and MIDI count it,
   // and shown in the beat a listener feels: half notes in 2/2, dotted quarters
@@ -400,7 +409,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
           text = await res.text();
         }
         if (!text) throw new Error("No MEI file given.");
-        const score = parseNative(text);
+        const score = await readMei(text, props.reader);
         if (canceled) return;
         scoreRef.current = score;
         // A new file: stop, back to the start, and give the transport its notes.
@@ -434,6 +443,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
             `${score.meterCount}/${score.meterUnit}`,
             `${score.bars.length} bars`,
           ].join(" · "),
+          reader: score.reader,
         });
         setStatus("ready");
         drawRef.current();
@@ -448,7 +458,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
     // props.sound and props.partSounds only set the starting sounds; changing
     // them later doesn't re-read the file.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src, meiText, props.bpm]);
+  }, [src, meiText, props.bpm, props.reader]);
 
   // Drawing + input + loop live in one mount effect using refs only.
   useEffect(() => {
@@ -844,7 +854,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
           <span className="mpr-title">{meta?.title ?? "—"}</span>
           {meta?.byline ? <span className="mpr-composer">{meta.byline}</span> : null}
           <span className="mpr-spacer" />
-          <span className="mpr-meta">{meta?.line ?? ""}</span>
+          <span className="mpr-meta" title={meta?.reader === "verovio" ? "Read with Verovio (verovio.org)" : undefined}>{meta?.line ?? ""}</span>
         </div>
       )}
 

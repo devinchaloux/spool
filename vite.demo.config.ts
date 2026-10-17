@@ -14,5 +14,8 @@ export default defineConfig({
     // Two pages: the studio (index.html) and the player alone, for other
     // sites to put in an iframe (embed.html, served at /embed).
     rollupOptions: { input: { main: 'index.html', embed: 'embed.html' } },
+    // Verovio's chunk is about 8 MB (2.4 MB compressed); it loads only when a
+    // file needs it, so its size is expected.
+    chunkSizeWarningLimit: 9000,
   },
 })

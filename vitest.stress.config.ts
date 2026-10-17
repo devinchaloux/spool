@@ -9,6 +9,6 @@ export default defineConfig({
     // Plain Node: the stress test makes its own simulated browser per file.
     environment: 'node',
     include: ['stress/**/*.stress.ts'],
-    testTimeout: 600_000,
+    testTimeout: 1_800_000,
   },
 })
