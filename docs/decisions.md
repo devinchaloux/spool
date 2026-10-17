@@ -646,10 +646,16 @@ contain Verovio's code: npm installs it as its own package, which a site can
 update or replace. The hosted demo serves Verovio's unmodified build as a
 separate file.
 
+Like the native reader, it plays every movement (`<mdiv>`) one after
+another; Verovio plays only the first unless asked. A note written in two
+layers (one points to the other with `sameas`) sounds once, where the native
+reader sounds it twice.
+
 **Known gaps.**
 - Verovio 6.3.0 doesn't play out repeats with first and second endings, or a
   repeat at the end of its section; those files still report "Repeats play
-  once."
+  once." Played once, a repeat sometimes skips its first ending, as a
+  performance without repeats would; the warning then says so.
 - In a `<choice>`, Verovio plays the first child, which is the error when a
   `<sic>` comes before its `<corr>`. Which reading plays is an open question.
 - Octave lines (`<octave>`) play at written pitch in both readers. The native

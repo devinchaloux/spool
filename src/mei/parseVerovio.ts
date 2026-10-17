@@ -235,7 +235,8 @@ function takeOutGraces(doc: Document, graces: Graces): boolean {
     return { holder, beats: source.getAttribute('dur') ? durToBeats(source, scale, new Warnings()) : null }
   }
   const out: Element[] = []
-  for (const layer of allDeep(doc, 'layer')) {
+  // Only the music: an incipit quoted in the header is never played.
+  for (const layer of allDeep(firstDeep(doc, 'music') ?? doc, 'layer')) {
     const items = Array.from(layer.getElementsByTagName('*'))
       .filter((el) => IN_TIME.has(el.localName) && !(el.localName === 'note' && el.parentElement?.localName === 'chord'))
     let run: Grace[] = []
@@ -270,6 +271,9 @@ export async function parseVerovio(text: string): Promise<MeiScore> {
   let exported = ''
   try {
     tk.resetOptions()
+    // Every movement (<mdiv>), one after another, as the native reader reads
+    // them; Verovio plays only the first by default.
+    tk.setOptions({ mdivAll: true })
     loaded = tk.loadData(prepared.text)
     if (loaded) {
       timemap = tk.renderToTimemap({ includeMeasures: true, includeRests: true })
@@ -351,7 +355,9 @@ function readTimemap(doc: Document, timemap: TimemapEntry[], graces: Graces, not
         if (layer) layer.push(ev)
         else layers.set(key, [ev])
       }
-      if (!rest) { ev.played.push(el); played.add(el) }
+      // A note written in two layers (the other points to it with sameas)
+      // is listed twice; it sounds once.
+      if (!rest && !ev.played.includes(el)) { ev.played.push(el); played.add(el) }
     }
     for (const id of entry.on ?? []) add(id, false)
     for (const id of entry.restsOn ?? []) add(id, true)
@@ -474,12 +480,17 @@ function readTimemap(doc: Document, timemap: TimemapEntry[], graces: Graces, not
   if (octaves) warn.add('octave', 'Octave lines play at written pitch.', octaves)
   const readings = allDeep(music, 'app').length + allDeep(music, 'choice').length
   if (readings) warn.add('reading', 'Where the file gives alternative readings, only the main or first one plays.', readings)
-  const marked = allDeep(music, 'measure').some((m) => /rpt/.test((m.getAttribute('left') || '') + (m.getAttribute('right') || '')))
-  if ((marked || allDeep(music, 'expansion').length) && !repeated) warn.add('repeat', 'Repeats play once.')
-  // Notes Verovio never timed, apart from the readings it didn't choose.
+  // Notes Verovio never timed, apart from the readings it didn't choose and
+  // notes written in two layers (sameas), which sound once.
   const alternatives = new Set(['app', 'choice', 'subst'])
-  const unplaced = allDeep(music, 'note').filter((n) => !played.has(n) && !hasAncestor(n, alternatives)).length
-  if (unplaced) warn.add('unplaced', "Some notes couldn't be placed in time and are left out.", unplaced)
+  const silent = allDeep(music, 'note').filter((n) => !played.has(n) && !n.getAttribute('sameas') && !hasAncestor(n, alternatives))
+  // A repeat Verovio doesn't play out is played once through, as the second
+  // time: its first ending is skipped.
+  const marked = allDeep(music, 'measure').some((m) => /rpt/.test((m.getAttribute('left') || '') + (m.getAttribute('right') || '')))
+  const marks = marked || allDeep(music, 'expansion').length > 0
+  const skipped = marks ? silent.filter((n) => hasAncestor(n, new Set(['ending']))).length : 0
+  if (marks && (!repeated || skipped)) warn.add('repeat', skipped ? 'Repeats play once, without their first endings.' : 'Repeats play once.')
+  if (silent.length > skipped) warn.add('unplaced', "Some notes couldn't be placed in time and are left out.", silent.length - skipped)
 
   return {
     ...credits(doc),

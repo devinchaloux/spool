@@ -133,6 +133,28 @@ describe('parseVerovio: what the native reader leaves out', () => {
     expect(codes(s)).toEqual(['tempo-change'])
   })
 
+  it('plays every movement, one after another', async () => {
+    const s = await parseVerovio(mei(bar(1, '<note pname="c" oct="4" dur="1"/>')).replace('</score></mdiv>',
+      `</score></mdiv><mdiv><score><scoreDef meter.count="4" meter.unit="4"><staffGrp><staffDef n="1" lines="5"/></staffGrp></scoreDef><section>${bar(1, '<note pname="d" oct="4" dur="1"/>')}</section></score></mdiv>`))
+    expect(s.notes.map((n) => [n.name, n.start])).toEqual([['C4', 0], ['D4', 4]])
+  })
+
+  it('sounds a note written in two layers once, and says nothing of it', async () => {
+    const s = await parseVerovio(mei(`<measure n="1"><staff n="1"><layer n="1"><note xml:id="a" pname="c" oct="5" dur="1"/></layer><layer n="2"><note sameas="#a" pname="c" oct="5" dur="1"/></layer></staff></measure>`))
+    expect(s.notes).toHaveLength(1)
+    expect(codes(s)).toEqual([])
+  })
+
+  it('says so when it plays a repeat once', async () => {
+    // Verovio 6.3 doesn't play out a repeat with endings.
+    const s = await parseVerovio(mei(
+      bar(1, '<note pname="c" oct="4" dur="1"/>') +
+      `<ending n="1">${bar(2, '<note pname="d" oct="4" dur="1"/>', 'right="rptend"')}</ending>` +
+      `<ending n="2">${bar(3, '<note pname="e" oct="4" dur="1"/>')}</ending>`))
+    expect(s.notes.map((n) => n.name)).not.toEqual(['C4', 'D4', 'C4', 'E4'])
+    expect(codes(s)).toEqual(['repeat'])
+  })
+
   it('rejects what it cannot read', async () => {
     await expect(parseVerovio('not music')).rejects.toThrow(/couldn't read/)
   })

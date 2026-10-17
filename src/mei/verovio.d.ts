@@ -31,6 +31,7 @@ declare module 'verovio/esm' {
   export class VerovioToolkit {
     constructor(module: unknown)
     resetOptions(): void
+    setOptions(options: Record<string, unknown>): void
     loadData(data: string): boolean
     renderToTimemap(options?: { includeMeasures?: boolean; includeRests?: boolean }): TimemapEntry[]
     getMEI(options?: Record<string, unknown>): string
