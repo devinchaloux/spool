@@ -22,14 +22,14 @@ export default function Embed() {
     fetchMei(params.src).then(setText, (e: Error) => setError(e.message))
   }, [])
 
-  // The roll takes whatever height the frame leaves after the caption below it,
-  // which changes when a credit line appears.
+  // The roll, or the notation in its place, takes whatever height the frame
+  // leaves after the caption below it, which changes when a credit line appears.
   useLayoutEffect(() => {
     const fit = () => {
       const root = rootRef.current
-      const canvas = root?.querySelector('canvas')
-      if (!root || !canvas) return
-      const chrome = root.offsetHeight - canvas.offsetHeight
+      const view = root?.querySelector<HTMLElement>('.mpr-notation') ?? root?.querySelector('canvas')
+      if (!root || !view) return
+      const chrome = root.offsetHeight - view.offsetHeight
       setHeight(Math.max(120, window.innerHeight - chrome))
     }
     fit()

@@ -9,8 +9,8 @@ import type { MeiBar, MeiNote, MeiPart, MeiScore, MeiWarning } from './types'
  * into MeiNote records, joining tied notes and placing grace notes just before
  * their beat. What it cannot do (repeats, unmarked short bars, mid-piece
  * changes, transposing instruments) it reports as warnings rather than hiding.
- * Files that need those go to the second reader, not built yet
- * (docs/decisions.md).
+ * It is the only reader: the notation view draws with Verovio but times notes
+ * from here (docs/decisions.md, 2026-10-17).
  *
  * Browser only: it uses the browser's DOMParser. Tests run it under jsdom.
  * ======================================================================== */
@@ -180,9 +180,9 @@ function pushNote(n: Element, start: number, beats: number, env: LayerEnv, chord
     env.warn.add('no-pitch', 'Notes without a pitch are left out.')
     return null
   }
-  const note: MeiNote = { midi, start, dur: beats, name: midiName(midi), part: env.part }
-  env.notes.push(note)
   const id = n.getAttribute('xml:id')
+  const note: MeiNote = { midi, start, dur: beats, name: midiName(midi), part: env.part, ids: id ? [id] : [] }
+  env.notes.push(note)
   if (id && !env.ties.byId.has(id)) env.ties.byId.set(id, note)
   // MEI's tie attribute: i starts a tie, m continues one, t ends it.
   const tie = n.getAttribute('tie') ?? chordTie
@@ -389,6 +389,7 @@ function joinTies(notes: MeiNote[], ties: TieIndex, music: Document | Element, w
       const to = next.get(cur)!
       if (joined.has(to) || to === head) break
       head.dur = to.start + to.dur - head.start
+      head.ids = [...head.ids ?? [], ...to.ids ?? []]
       joined.add(to)
       cur = to
     }

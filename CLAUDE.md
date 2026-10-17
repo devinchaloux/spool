@@ -4,10 +4,11 @@ Instructions for Claude Code in this repository. They apply to anyone working
 on Spool with Claude; the maintainer's own session instructions load
 from a private file through the import at the end.
 
-**Current state (2026-10-08):** the native reader and the player work,
-several instruments included, with unit tests, a demo page (`npm run dev`) and
-a stress test over the MEI project's sample files (`npm run stress`). The
-second reader is not built.
+**Current state (2026-10-17):** the native reader and the player work,
+several instruments included, with a notation view drawn by Verovio, unit
+tests, a demo page (`npm run dev`) and a stress test over the MEI project's
+sample files (`npm run stress`). Verovio draws notation only; the native
+reader times everything (`docs/decisions.md`).
 `docs/decisions.md` lists what is decided and what is open.
 
 ---
@@ -48,7 +49,10 @@ code.
   simplifies or guesses. Every reader returns this one shape. No UI here, and it
   is unit-tested in `src/test/`.
 - **`src/roll/MeiPianoRoll.tsx`** only draws (one canvas) and plays what a
-  reader returns, and lists the warnings under the roll. Colors come from
+  reader returns, and lists the warnings under the roll.
+- **`src/notation/`** shows the file as notation in the roll's place: Verovio
+  engraves it, imported only when the view is opened, and the player's clock
+  lights notes by xml:id. Never use Verovio's timing. Colors come from
   `src/roll/themes.ts`.
 - **`src/audio/`** plays notes: synth sounds are data recipes in `synth.ts`;
   sampled instruments come from `smplr`, imported only when one is chosen, so

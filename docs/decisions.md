@@ -1,13 +1,14 @@
 # Decisions
 
-**Status (2026-10-10):** Spool is a public alpha that opens a file from a
+**Status (2026-10-17):** Spool is a public alpha that opens a file from a
 link and shares one as a link or an iframe embed, and plays the sampled
 instruments from its own copy. The native reader works, and the player has a sound
 picker, color themes, image export and several instruments in one roll, each
-with its own color and sound. Tied notes sound once and grace notes play
-before their beat. The composer and artist show when the file names them.
-**Next action:** the second reader (Verovio) for any MEI file; annotations
-once their list is settled.
+with its own color and sound, and a notation view drawn by Verovio. Tied
+notes sound once and grace notes play before their beat. The composer and
+artist show when the file names them.
+**Next action:** the native reader's tuplets written as `@tuplet` or a
+`<tupletSpan>`; annotations once their list is settled.
 
 Each decision gets: date, the choice, the alternatives rejected, and why, so it
 isn't re-litigated later. Entries are binding until a later entry reverses
@@ -602,6 +603,29 @@ length is written on their notes, plays only the first `<mdiv>` unless asked,
 and doesn't play out repeats with endings. Those are Verovio's to fix, not
 this project's. Spool's own files, short and cleanly encoded, read correctly
 with the native reader.
+
+**The notation view.** A Notation button, in both layouts, swaps the roll
+for the file engraved by Verovio as one long line of music
+(`src/notation/`). It is lit and followed by the same playhead: each frame,
+the notes sounding are colored in their part's color, and the view scrolls to
+keep them about 38% across, as the roll does; clicking a note moves the
+playhead there. Notes are matched by xml:id: the reader records each sound's
+written notes (`MeiNote.ids`, all of a tied chain), Verovio keeps the file's
+ids, and a note the file gives no id gets one (`spool-note-N`, in document
+order) before either reads it. Notation is always on paper, the paper
+theme's background with near-black ink, whatever the roll's theme; part
+colors take their light-theme strength there. The SVG is scaled to the
+player's height, at most twice Verovio's size, so a one-line tune reads
+large and a four-part score fits. Verovio's SVG keeps only drawing before it
+joins the page (no scripts, event attributes or outside links), since the
+file can come from anyone's link. The roll's zoom, lanes and image controls
+hide while notation shows. `notation` (default true) offers the button;
+`view` opens on either.
+
+**Why.** The maintainer wants listeners to an anthem on a page to be able
+to read it as notation, with the roll as the default (2026-10-17).
+Notation is read as printed music, hence paper (the maintainer's call,
+2026-10-17).
 
 **Kept from it.** The comparison found gaps in the native reader: it skipped
 octave lines without a word (it now reports them), and it ignores tuplets

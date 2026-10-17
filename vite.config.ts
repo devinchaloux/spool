@@ -19,9 +19,9 @@ export default defineConfig({
     rollupOptions: {
       // React comes from the page that embeds the roll, never from this bundle:
       // two copies of React on one page break hooks.
-      // smplr (the sample player) and verovio (the second reader) are normal
+      // smplr (the sample player) and verovio (the notation view) are normal
       // dependencies: installed alongside, and still loaded only when a sampled
-      // sound is chosen or a file needs Verovio (dynamic imports).
+      // sound is chosen or the notation view opened (dynamic imports).
       external: ['react', 'react-dom', 'react/jsx-runtime', 'smplr', /^verovio(\/|$)/],
     },
   },

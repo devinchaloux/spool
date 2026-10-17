@@ -13,6 +13,11 @@ export interface MeiNote {
   name: string
   /** Which instrument plays it: an index into `MeiScore.parts`. */
   part: number
+  /**
+   * The written notes it sounds, by xml:id: one, or every note of a tied
+   * chain. Empty when the file gives the note no id.
+   */
+  ids?: string[]
 }
 
 /**
