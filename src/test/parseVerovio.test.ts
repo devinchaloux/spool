@@ -44,6 +44,14 @@ describe('parseVerovio: agrees with the native reader', () => {
       bar(1, '<note pname="c" oct="5" dur="2"/><note pname="d" oct="5" dur="16" grace="unacc"/><note pname="c" oct="5" dur="2"/>') +
       bar(2, '<note pname="c" oct="5" dur="2"/><graceGrp><note pname="d" oct="5" dur="16"/><note pname="e" oct="5" dur="16"/></graceGrp><note pname="c" oct="5" dur="2"/>') +
       bar(3, '<note pname="c" oct="5" dur="2"/><note pname="d" oct="5" dur="8" grace="acc"/><note pname="e" oct="5" dur="2"/>')),
+    // Verovio plays these on the beat, or shortens the note before; the
+    // native reader's rule places both just before their beat.
+    'grace notes at the start and end of a bar': mei(
+      bar(1, '<note pname="c" oct="5" dur="1"/>') +
+      bar(2, '<note pname="d" oct="6" dur="32" grace="unacc"/><note pname="b" oct="5" dur="2"/><rest dur="4"/><note pname="g" oct="5" dur="4"/><beam><note pname="a" oct="5" dur="32" grace="unacc"/><note pname="b" oct="5" dur="32" grace="unacc"/></beam>') +
+      bar(3, '<note pname="c" oct="6" dur="1"/>')),
+    'a chord whose length is on its notes': mei(
+      bar(1, '<chord><note pname="c" oct="4" dur="8"/><note pname="e" oct="4" dur="8"/></chord><note pname="g" oct="4" dur="8"/><rest dur="4"/><rest dur="2"/>')),
     'measured tremolos': mei(
       bar(1, '<bTrem><note pname="c" oct="4" dur="4" stem.mod="2slash"/></bTrem><rest dur="4"/><fTrem unitdur="8"><note pname="c" oct="4" dur="4"/><note pname="e" oct="4" dur="4"/></fTrem>')),
     'a copied chord': mei(

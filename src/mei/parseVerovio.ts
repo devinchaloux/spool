@@ -15,8 +15,10 @@ import {
  * pitch from the key signature in force, parts, ties, grace notes just before
  * their beat, tremolos as the notes they stand for, and the credits. Verovio
  * leaves the key signature and transposition out of the pitches it reports,
- * plays tremolos held and grace notes as slivers, so those are worked out
- * here from the encoding as Verovio exports it, every element with an id.
+ * plays tremolos held and times grace notes its own way, so those are worked
+ * out here from the encoding as Verovio exports it, every element with an id.
+ * Grace notes are taken out before Verovio reads the file, so they can't
+ * move the notes around them, and put back by the native reader's rule.
  *
  * Verovio is a separate download, about 2.4 MB compressed, fetched the first
  * time a file needs it. Like the native reader, it needs a DOMParser (the
@@ -127,40 +129,131 @@ function hasAncestor(el: Element, names: Set<string>): boolean {
   return false
 }
 
-// copyof="#id" means "the same content as that element". Verovio times the
-// copy but exports it as an empty shell (a copied chord keeps one note, with
-// no pitch), so the notes are read from the element it copies, found by the
-// same path below the copied ancestor.
-function makeSourceOf(byId: Map<string, Element>): (el: Element) => Element {
-  return (el) => {
-    let copy: Element | null = el
-    const path: number[] = []
-    while (copy && !copy.getAttribute('copyof')) {
-      const parent: Element | null = copy.parentElement
-      if (!parent || copy.localName === 'measure') return el
-      path.unshift(Array.from(parent.children).indexOf(copy))
-      copy = parent
-    }
-    if (!copy) return el
-    let target: Element | undefined = copy
-    // A copy of a copy is allowed; the limit only stops a reference loop.
-    for (let hops = 0; hops < 8 && target?.getAttribute('copyof'); hops++) {
-      target = byId.get(target.getAttribute('copyof')!.replace(/^#/, ''))
-    }
-    for (const i of path) target = target?.children[i]
-    return target ?? el
-  }
+// ── Before Verovio reads the file ──
+// What Verovio mistimes is written out first, as the native reader reads it:
+// - copyof="#id" means "the same content as that element" (Schubert's
+//   Erlkönig writes its repeated chords this way). Verovio times a copy as if
+//   it had no written length, and a copied chord sounds one note.
+// - A chord whose length is written on its notes, not on the chord, which
+//   Verovio times as a quarter note. It takes its notes' length.
+// - Grace notes. Verovio plays some on the beat, delaying the main note, and
+//   others by shortening the note before. They are taken out and remembered
+//   by the note they lead into, or, at the end of a layer, the note they
+//   follow.
+
+const XML_NS = 'http://www.w3.org/XML/1998/namespace'
+
+// Layer contents that take their turn in time.
+const IN_TIME = new Set(['note', 'chord', 'rest', 'mRest', 'multiRest', 'space', 'mSpace'])
+
+interface Grace {
+  /** The grace note or chord, as encoded. */
+  holder: Element
+  /** Its written length in beats, or null if it has none. */
+  beats: number | null
 }
 
-// A note's grace type, from itself, its chord or its <graceGrp>; null if it
-// is not a grace note. A <graceGrp> without one is still grace notes.
-function graceOf(holder: Element): string | null {
-  const own = holder.getAttribute('grace')
-  if (own) return own
-  for (let p = holder.parentElement; p && p.localName !== 'layer'; p = p.parentElement) {
-    if (p.localName === 'graceGrp') return p.getAttribute('grace') || 'unacc'
+interface Graces {
+  /** Grace notes by the id of the note, chord or rest they lead into. */
+  before: Map<string, Grace[]>
+  /** Grace notes at the end of a layer, by the id of what they follow. */
+  after: Map<string, Grace[]>
+}
+
+interface Prepared {
+  text: string
+  graces: Graces
+}
+
+function prepareForVerovio(text: string): Prepared {
+  const graces: Graces = { before: new Map(), after: new Map() }
+  const doc = new DOMParser().parseFromString(text.trim(), 'application/xml')
+  if (doc.querySelector('parsererror')) return { text, graces }
+  let changed = writeOutCopies(doc)
+  for (const chord of allDeep(doc, 'chord')) {
+    if (chord.getAttribute('dur') || chord.getAttribute('copyof')) continue
+    const source = durSourceOf(chord)
+    if (source === chord) continue
+    chord.setAttribute('dur', source.getAttribute('dur')!)
+    if (source.getAttribute('dots')) chord.setAttribute('dots', source.getAttribute('dots')!)
+    changed = true
   }
-  return null
+  if (takeOutGraces(doc, graces)) changed = true
+  return { text: changed ? doc.documentElement.outerHTML : text, graces }
+}
+
+function writeOutCopies(doc: Document): boolean {
+  const byId = indexIds(doc)
+  let changed = false
+  // A copy of a copy is written out on a later pass; the limit only stops a
+  // reference loop.
+  for (let pass = 0; pass < 8; pass++) {
+    const copies: Element[] = []
+    const walker = doc.createTreeWalker(doc, 1 /* NodeFilter.SHOW_ELEMENT */)
+    while (walker.nextNode()) {
+      const el = walker.currentNode as Element
+      if (el.getAttribute('copyof') && !el.children.length) copies.push(el)
+    }
+    let written = false
+    for (const copy of copies) {
+      const target = byId.get(copy.getAttribute('copyof')!.replace(/^#/, ''))
+      if (!target || target.contains(copy)) continue
+      const clone = target.cloneNode(true) as Element
+      // The copy is new content: its notes get ids of their own from Verovio.
+      for (const el of [clone, ...Array.from(clone.getElementsByTagName('*'))]) el.removeAttribute('xml:id')
+      for (const attr of Array.from(copy.attributes)) if (attr.name !== 'copyof') clone.setAttributeNS(attr.namespaceURI, attr.name, attr.value)
+      copy.replaceWith(clone)
+      written = changed = true
+    }
+    if (!written) break
+  }
+  return changed
+}
+
+// A grace note or chord: marked itself, or inside a <graceGrp>.
+function isGrace(el: Element): boolean {
+  if (el.getAttribute('grace')) return true
+  for (let p = el.parentElement; p && p.localName !== 'layer'; p = p.parentElement) {
+    if (p.localName === 'graceGrp') return true
+  }
+  return false
+}
+
+function takeOutGraces(doc: Document, graces: Graces): boolean {
+  let made = 0
+  const idOf = (el: Element) => {
+    if (!el.getAttribute('xml:id')) el.setAttributeNS(XML_NS, 'xml:id', `spool-grace-${++made}`)
+    return el.getAttribute('xml:id')!
+  }
+  const grace = (holder: Element): Grace => {
+    // A triplet (num 3, numbase 2) squeezes three notes into the time of two.
+    let scale = 1
+    for (let p = holder.parentElement; p && p.localName !== 'layer'; p = p.parentElement) {
+      if (p.localName === 'tuplet') scale *= parseInt(p.getAttribute('numbase') || '2', 10) / parseInt(p.getAttribute('num') || '3', 10)
+    }
+    const source = holder.localName === 'chord' ? durSourceOf(holder) : holder
+    return { holder, beats: source.getAttribute('dur') ? durToBeats(source, scale, new Warnings()) : null }
+  }
+  const out: Element[] = []
+  for (const layer of allDeep(doc, 'layer')) {
+    const items = Array.from(layer.getElementsByTagName('*'))
+      .filter((el) => IN_TIME.has(el.localName) && !(el.localName === 'note' && el.parentElement?.localName === 'chord'))
+    let run: Grace[] = []
+    let prev: Element | null = null
+    for (const el of items) {
+      if (isGrace(el)) {
+        run.push(grace(el))
+        out.push(el)
+        continue
+      }
+      if (run.length) graces.before.set(idOf(el), run)
+      run = []
+      prev = el
+    }
+    if (run.length && prev) graces.after.set(idOf(prev), run)
+  }
+  for (const el of out) (el.closest('graceGrp') ?? el).remove()
+  return out.length > 0
 }
 
 // ── Entry point ──
@@ -171,11 +264,26 @@ function graceOf(holder: Element): string | null {
  */
 export async function parseVerovio(text: string): Promise<MeiScore> {
   const tk = await loadToolkit()
-  tk.resetOptions()
-  if (!tk.loadData(text)) throw new Error("Verovio couldn't read this file.")
-  const timemap = tk.renderToTimemap({ includeMeasures: true, includeRests: true })
-  const doc = new DOMParser().parseFromString(tk.getMEI(), 'application/xml')
-  return readTimemap(doc, timemap, (id) => tk.getNotatedIdForElement(id))
+  const prepared = prepareForVerovio(text)
+  let loaded: boolean
+  let timemap: TimemapEntry[] = []
+  let exported = ''
+  try {
+    tk.resetOptions()
+    loaded = tk.loadData(prepared.text)
+    if (loaded) {
+      timemap = tk.renderToTimemap({ includeMeasures: true, includeRests: true })
+      exported = tk.getMEI()
+    }
+  } catch (err) {
+    // Verovio's engine stops on a few files (two of the samples); start a
+    // fresh one for the next file.
+    toolkit = null
+    throw err
+  }
+  if (!loaded || !Array.isArray(timemap)) throw new Error("Verovio couldn't read this file.")
+  const doc = new DOMParser().parseFromString(exported, 'application/xml')
+  return readTimemap(doc, timemap, prepared.graces, (id) => tk.getNotatedIdForElement(id))
 }
 
 // What sounds at one moment in one layer: a note, a chord, or a rest.
@@ -184,17 +292,18 @@ interface Event {
   end: number
   /** The note or chord as encoded; null for a rest. */
   holder: Element | null
+  /** The note, chord or rest as encoded. */
+  el: Element
   /** The notes Verovio played for it, as encoded. */
   played: Element[]
   place: Place
 }
 
-function readTimemap(doc: Document, timemap: TimemapEntry[], notatedId: (id: string) => string): MeiScore {
+function readTimemap(doc: Document, timemap: TimemapEntry[], graces: Graces, notatedId: (id: string) => string): MeiScore {
   const warn = new Warnings()
   const music = firstDeep(doc, 'music') ?? doc.documentElement
   const byId = indexIds(doc)
   const places = placesOf(music)
-  const sourceOf = makeSourceOf(byId)
   // A note in a repeat played out has an id of Verovio's making; look it up
   // by the id of the note as written.
   const elementOf = (id: string) => byId.get(id) ?? byId.get(notatedId(id))
@@ -235,7 +344,7 @@ function readTimemap(doc: Document, timemap: TimemapEntry[], notatedId: (id: str
       const holder = rest ? null : el.parentElement?.localName === 'chord' ? el.parentElement : el
       let ev = events.get(holder ?? el)
       if (!ev) {
-        ev = { start: entry.qstamp, end: end.get(id) ?? entry.qstamp, holder, played: [], place }
+        ev = { start: entry.qstamp, end: end.get(id) ?? entry.qstamp, holder, el: holder ?? el, played: [], place }
         events.set(holder ?? el, ev)
         const key = `${place.staff}/${place.layer}`
         const layer = layers.get(key)
@@ -274,17 +383,9 @@ function readTimemap(doc: Document, timemap: TimemapEntry[], notatedId: (id: str
     return note
   }
 
-  // The notes an event sounds: a copy's come from what it copies.
-  const notesOf = (ev: Event): { chord: Element | null; notes: Element[] } => {
-    const holder = ev.holder!
-    const source = sourceOf(holder)
-    if (source === holder) return { chord: holder.localName === 'chord' ? holder : null, notes: ev.played }
-    return source.localName === 'chord' ? { chord: source, notes: childrenNamed(source, 'note') } : { chord: null, notes: [source] }
-  }
-
   const sound = (ev: Event, start: number, dur: number, tieStart = true): MeiNote[] => {
-    const { chord, notes } = notesOf(ev)
-    return notes.map((n) => addNote(n, chord, start, dur, ev.place, tieStart)).filter((n): n is MeiNote => n !== null)
+    const chord = ev.holder?.localName === 'chord' ? ev.holder : null
+    return ev.played.map((n) => addNote(n, chord, start, dur, ev.place, tieStart)).filter((n): n is MeiNote => n !== null)
   }
 
   // ── Tremolos ──
@@ -314,53 +415,41 @@ function readTimemap(doc: Document, timemap: TimemapEntry[], notatedId: (id: str
   // ── Grace notes ──
   // The native reader's rule: just before the beat, taking time from the note
   // before; each its written length, but a run of them at most half the time
-  // since that note. Verovio plays accented grace notes (grace="acc") on the
-  // beat, delaying the main note, so for those the beat is where they start.
-  const placeGraces = (run: Event[], beat: number, last: MeiNote[], lastStart: number | null) => {
-    const graces: { ev: Event; beats: number }[] = []
-    for (const ev of run) {
-      const source = ev.holder!.localName === 'chord' ? durSourceOf(ev.holder!) : ev.holder!
-      if (!source.getAttribute('dur')) warn.add('grace-no-dur', 'Grace notes without a written length are left out.')
-      else graces.push({ ev, beats: durToBeats(source, 1, warn) })
-    }
-    if (!graces.length) return
+  // since that note.
+  const placed = new Set<Grace[]>()
+  const placeGraces = (run: Grace[], beat: number, last: MeiNote[], lastStart: number | null, place: Place) => {
+    placed.add(run)
+    const timed = run.filter((g) => g.beats !== null)
+    if (timed.length < run.length) warn.add('grace-no-dur', 'Grace notes without a written length are left out.', run.length - timed.length)
+    if (!timed.length) return
     const room = beat - (lastStart ?? 0)
     if (room <= 1e-9) {
-      warn.add('grace-start', 'Grace notes with no time before them are left out.', graces.length)
+      warn.add('grace-start', 'Grace notes with no time before them are left out.', timed.length)
       return
     }
-    const total = graces.reduce((sum, g) => sum + g.beats, 0)
+    const total = timed.reduce((sum, g) => sum + g.beats!, 0)
     const fit = Math.min(1, room / 2 / total)
     let t = beat - total * fit
     for (const n of last) if (n.start + n.dur > t) n.dur = Math.max(0, t - n.start)
-    for (const g of graces) {
-      sound(g.ev, t, g.beats * fit)
-      t += g.beats * fit
+    for (const g of timed) {
+      const chord = g.holder.localName === 'chord' ? g.holder : null
+      for (const n of chord ? childrenNamed(chord, 'note') : [g.holder]) addNote(n, chord, t, g.beats! * fit, place, true)
+      t += g.beats! * fit
     }
   }
 
   for (const events of layers.values()) {
     let last: MeiNote[] = []
     let lastStart: number | null = null
-    let run: Event[] = []
-    const onBeat = () => graceOf(run[0].holder!) === 'acc'
     for (const ev of events) {
-      if (ev.holder && graceOf(ev.holder)) {
-        run.push(ev)
-        continue
-      }
-      if (run.length) {
-        if (onBeat()) ev.start = run[0].start
-        placeGraces(run, ev.start, last, lastStart)
-        run = []
-      }
+      const id = ev.el.getAttribute('xml:id') ?? ''
+      const lead = graces.before.get(id)
+      if (lead) placeGraces(lead, ev.start, last, lastStart, ev.place)
+      const trem = ev.holder?.parentElement
       if (!ev.holder) {
         last = []
         lastStart = ev.start
-        continue
-      }
-      const trem = ev.holder.parentElement
-      if (trem && (trem.localName === 'bTrem' || trem.localName === 'fTrem')) {
+      } else if (trem && (trem.localName === 'bTrem' || trem.localName === 'fTrem')) {
         const stroke = soundTremolo(ev, trem)
         last = stroke.notes
         lastStart = stroke.start
@@ -368,10 +457,13 @@ function readTimemap(doc: Document, timemap: TimemapEntry[], notatedId: (id: str
         last = sound(ev, ev.start, ev.end - ev.start)
         lastStart = ev.start
       }
+      // Grace notes at the end of a layer lead into its end.
+      const trail = graces.after.get(id)
+      if (trail) placeGraces(trail, ev.end, last, lastStart, ev.place)
     }
-    // Grace notes at the end of a layer lead into its end.
-    if (run.length) placeGraces(run, onBeat() ? run[0].start : run[run.length - 1].end, last, lastStart)
   }
+  const lost = [...graces.before.values(), ...graces.after.values()].filter((run) => !placed.has(run)).reduce((sum, run) => sum + run.length, 0)
+  if (lost) warn.add('unplaced', "Some notes couldn't be placed in time and are left out.", lost)
 
   const notes = joinTies(read, ties, music, warn)
 

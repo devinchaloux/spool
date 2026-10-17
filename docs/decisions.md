@@ -623,10 +623,17 @@ about 8 MB (2.4 MB compressed), downloaded once.
 - *Verovio's MIDI file:* it transposes, but also ignores the key signature,
   and no longer says which written note each sound is, so parts and ties are
   lost.
-- *Verovio's timing of grace notes and tremolos:* it plays grace notes as
-  slivers (about 30 ms), accented ones on the beat with the main note delayed,
-  a `<bTrem>` as one held note and an `<fTrem>` as two halves, against the
-  2026-10-08 decisions. The reader re-times them by those decisions.
+- *Verovio's timing of grace notes and tremolos:* against the 2026-10-08
+  decisions, it plays grace notes as slivers (about 30 ms), some on the beat
+  with the main note delayed (`acc`, `unknown`, and some `unacc` at the start
+  of a bar), others by shortening the note before; a `<bTrem>` as one held
+  note and an `<fTrem>` as two halves. Grace notes are taken out before
+  Verovio reads the file and put back by the native reader's rule; tremolos
+  are written out over the span Verovio gives them.
+- *Verovio's reading of two shorthands,* which mistimes the bars around them:
+  a `copyof` copy, timed as if it had no length (a copied chord also sounds
+  one note), and a chord whose length is written on its notes, timed as a
+  quarter. Both are written out in full before Verovio reads the file.
 - *Verovio for every file:* the 2026-10-07 entry's reason holds: small
   embeds of clean files shouldn't download several megabytes.
 
