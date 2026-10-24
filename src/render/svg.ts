@@ -27,6 +27,8 @@ export interface RollImageOptions {
   keyboard?: boolean
   /** Bar numbers along the top. Default false. */
   barNumbers?: boolean
+  /** The chord symbols in a row along the top, under any bar numbers, when the file has some. Default true. */
+  chordSymbols?: boolean
   /** Beat and bar lines. Default true. */
   grid?: boolean
   /** Pitch names on notes wide enough to hold them. Default false. */
@@ -51,7 +53,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100
 
 export function rollToSvg(score: MeiScore, options: RollImageOptions = {}): string {
   const o = {
-    width: 1200, height: 400, keyboard: true, barNumbers: false, grid: true, noteLabels: false,
+    width: 1200, height: 400, keyboard: true, barNumbers: false, chordSymbols: true, grid: true, noteLabels: false,
     background: true, pitchPadding: 1, separateParts: false, ...options,
   }
   const theme = resolveTheme(o.theme)
@@ -70,7 +72,13 @@ export function rollToSvg(score: MeiScore, options: RollImageOptions = {}): stri
   // ── Geometry ──
   const keyW = o.keyboard ? Math.max(24, Math.min(60, Math.round(o.width * 0.04))) : 0
   const rulerH = o.barNumbers ? 22 : 0
-  const lanes = layoutLanes(notes, { separate: o.separateParts, top: rulerH, height: o.height - rulerH, pitchPadding: o.pitchPadding })
+  // One symbol per moment (a file can write it on several staves), the one
+  // sounding when the stretch begins included.
+  const allChords = (o.chordSymbols ? score.chords : []).filter((c, i, all) => i === 0 || c.start > all[i - 1].start + 1e-6)
+  const chords = allChords.filter((c, i) => c.start < endBeat - 1e-6 && (allChords[i + 1]?.start ?? Infinity) > startBeat + 1e-6)
+  const chordH = chords.length ? 20 : 0
+  const top = rulerH + chordH
+  const lanes = layoutLanes(notes, { separate: o.separateParts, top, height: o.height - top, pitchPadding: o.pitchPadding })
   const labelLanes = lanes.length > 1
   const px = (o.width - keyW) / span
   const x = (beat: number) => keyW + (beat - startBeat) * px
@@ -147,6 +155,18 @@ export function rollToSvg(score: MeiScore, options: RollImageOptions = {}): stri
     for (let i = first - 1; i < last; i++) {
       out.push(`<text x="${r2(x(bars[i].start) + 4)}" y="${rulerH / 2}" dominant-baseline="central" ${font} font-size="11" fill="${theme.text}">${esc(bars[i].label)}</text>`)
     }
+  }
+
+  // ── Chord symbols, each clipped to the room before the next ──
+  if (chordH) {
+    out.push(`<rect y="${rulerH}" width="${o.width}" height="${chordH}" fill="${o.background ? theme.background : 'none'}"/>`)
+    out.push(`<line x1="${keyW}" y1="${top - 0.5}" x2="${o.width}" y2="${top - 0.5}" stroke="${theme.gridBeat}"/>`)
+    chords.forEach((c, i) => {
+      const left = Math.max(x(c.start), keyW)
+      const right = Math.min(x(chords[i + 1]?.start ?? endBeat), o.width)
+      out.push(`<clipPath id="chord-${i}"><rect x="${r2(left)}" y="${rulerH}" width="${r2(Math.max(0, right - left - 2))}" height="${chordH}"/></clipPath>`)
+      out.push(`<text x="${r2(left + 4)}" y="${rulerH + chordH / 2}" dominant-baseline="central" clip-path="url(#chord-${i})" ${font} font-size="12" font-weight="600" fill="${theme.text}">${esc(c.label)}</text>`)
+    })
   }
 
   if (o.keyboard) out.push(`<line x1="${keyW + 0.5}" y1="0" x2="${keyW + 0.5}" y2="${o.height}" stroke="${theme.gridBar}"/>`)

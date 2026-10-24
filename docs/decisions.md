@@ -1,12 +1,13 @@
 # Decisions
 
-**Status (2026-10-17):** Spool is a public alpha that opens a file from a
+**Status (2026-10-24):** Spool is a public alpha that opens a file from a
 link and shares one as a link or an iframe embed, and plays the sampled
 instruments from its own copy. The native reader works, and the player has a sound
 picker, color themes, image export and several instruments in one roll, each
-with its own color and sound, and a notation view drawn by Verovio. Tied
-notes sound once and grace notes play before their beat. The composer and
-artist show when the file names them.
+with its own color and sound, and a notation view drawn by Verovio, with its
+own zoom. Tied notes sound once and grace notes play before their beat. The
+composer and artist show when the file names them. Chord symbols show over
+the roll, and can add a bass line.
 **Next action:** the native reader's tuplets written as `@tuplet` or a
 `<tupletSpan>`; annotations once their list is settled.
 
@@ -627,11 +628,63 @@ to read it as notation, with the roll as the default (2026-10-17).
 Notation is read as printed music, hence paper (the maintainer's call,
 2026-10-17).
 
+**Note (2026-10-24).** Fitting the notation to the player's height made a
+one-line tune twice Verovio's size, far too large (the maintainer, on a lead
+sheet). It now opens at Verovio's own size, shrunk only to fit a score taller
+than the player, and the zoom buttons work in the notation view too, from 0.4
+to 3 times that size; the roll and the notation keep separate zooms. A zoom
+keeps the same music in the middle of the view.
+
 **Kept from it.** The comparison found gaps in the native reader: it skipped
 octave lines without a word (it now reports them), and it ignores tuplets
 written as `@tuplet` attributes or as a `<tupletSpan>` beside the layer,
 silently, so those bars run long (Brahms's quartet and Debussy's *Golliwogg's
 Cakewalk* among the samples; not fixed yet).
+
+### 2026-10-24: chord symbols, and a bass line from them
+
+**Choice.** The reader returns the file's chord symbols (`<harm>`) as
+`chords`, each placed by the note it points at (`startid`) or its beat in the
+bar (`tstamp`). The player shows them in a row under the bar numbers, each
+clipped to the room before the next; saved images draw them too
+(`chordSymbols`, default on). A `<harm>` holding figured bass (`<fb>`) is
+reported, not shown. The maintainer's choices (2026-10-24):
+
+- **Flat and sharp signs.** MuseScore exports a symbol as the text it was typed
+  as ("Eb"), though it shows E♭ on screen. Spool shows ♭ and ♯ on the roll, in
+  images and in notation, as it would be printed: a `b` or `#` straight after
+  a pitch letter, or before a number ("B♭m7♭5"), becomes a sign; the b in
+  "sus" or "dim" stays. Only the display changes: `text` keeps the file's
+  words, and the notation view draws from a copy of the file with the signs
+  written in (`withPrettyChords`).
+- **A bass line, on request.** A button in the full player (and the
+  `bassLine` prop) adds a part named "Bass from chords" that plays each
+  chord's bass note, held until the next symbol (or the end), in a bass
+  guitar's bottom octave, E1 to D♯2. A slash chord plays the note after the
+  slash (E for C/E). "N.C." rests; a symbol it can't read rests and is
+  reported. The part is marked `generated`, says in its tooltip that it isn't
+  in the file, has its own color, mute, solo and sound, and lights its chord
+  symbol in the notation view. It starts on the sampled synth bass: the synth
+  basses sound an octave below the written note, too low for this register.
+  Turning it on or off keeps the playhead and playback.
+- **What counts as a flat.** One MEI sample (Parker and Gillespie's *Shaw
+  'Nuff*) writes flats with the music symbol 𝄬, and puts optional chords in
+  parentheses; both are read.
+
+**Rejected.**
+- *Fixing the text in the file:* MEI is the source of truth, and the tool
+  never rewrites it. The export is MuseScore's to fix.
+- *A root on every beat, or on every downbeat:* a held note is the plainest
+  reading of the harmony, and leaves the rhythm to the melody.
+- *The root under a slash chord:* a bassist reads C/E as asking for an E.
+- *An octave under the lowest written note:* it would move from piece to
+  piece; a fixed bass register reads as a bass part.
+
+**Why.** The maintainer's lead sheets carry chord symbols, and a producer
+reads a lead sheet as harmony and a bass line as much as a melody
+(2026-10-24). On the 617 sample files the stress test changed only by the new
+figured-bass report (16 files; files read with no warnings went from 140 to
+139); every chord symbol in the four sample lead sheets reads.
 
 ## Open questions
 

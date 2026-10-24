@@ -4,8 +4,9 @@ Instructions for Claude Code in this repository. They apply to anyone working
 on Spool with Claude; the maintainer's own session instructions load
 from a private file through the import at the end.
 
-**Current state (2026-10-17):** the native reader and the player work,
-several instruments included, with a notation view drawn by Verovio, unit
+**Current state (2026-10-24):** the native reader and the player work,
+several instruments included, with a notation view drawn by Verovio, chord
+symbols and a bass line made from them, unit
 tests, a demo page (`npm run dev`) and a stress test over the MEI project's
 sample files (`npm run stress`). Verovio draws notation only; the native
 reader times everything (`docs/decisions.md`).

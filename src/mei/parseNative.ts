@@ -1,4 +1,5 @@
-import type { MeiBar, MeiNote, MeiPart, MeiScore, MeiWarning } from './types'
+import type { MeiBar, MeiChord, MeiNote, MeiPart, MeiScore, MeiWarning } from './types'
+import { prettyChord } from './chords'
 
 /* ===========================================================================
  * The native reader: a small MEI reader with no dependencies.
@@ -7,7 +8,7 @@ import type { MeiBar, MeiNote, MeiPart, MeiScore, MeiWarning } from './types'
  * staff's opening key and the first tempo once, groups the staves into parts
  * (instruments), walks every layer of every measure, and turns notes and chords
  * into MeiNote records, joining tied notes and placing grace notes just before
- * their beat. What it cannot do (repeats, unmarked short bars, mid-piece
+ * their beat, and reads the chord symbols. What it cannot do (repeats, unmarked short bars, mid-piece
  * changes, transposing instruments) it reports as warnings rather than hiding.
  * It is the only reader: the notation view draws with Verovio but times notes
  * from here (docs/decisions.md, 2026-10-17).
@@ -171,6 +172,13 @@ interface LayerEnv {
   warn: Warnings
   layer: LayerState
   ties: TieIndex
+  /** When each note, chord and rest with an xml:id starts, for what points at it (a chord symbol). */
+  onsets: Map<string, number>
+}
+
+function recordOnset(el: Element, t: number, env: LayerEnv): void {
+  const id = el.getAttribute('xml:id')
+  if (id && !env.onsets.has(id)) env.onsets.set(id, t)
 }
 
 // A chord's tie applies to every note in it that has none of its own.
@@ -268,11 +276,13 @@ function walkLayer(node: Element, ctx: { t: number }, env: LayerEnv, scale: numb
         continue
       }
       placeGraces(ctx.t, env)
+      recordOnset(child, ctx.t, env)
       const beats = durToBeats(tag === 'chord' ? durSourceOf(child) : child, scale, env.warn)
       sound(child, ctx.t, beats, env)
       ctx.t += beats
     } else if (tag === 'rest' || tag === 'space' || tag === 'mRest' || tag === 'mSpace' || tag === 'multiRest') {
       placeGraces(ctx.t, env)
+      recordOnset(child, ctx.t, env)
       strike([], ctx.t, env)
       if (tag === 'mRest' || tag === 'mSpace') ctx.t += env.measureBeats
       else if (tag === 'multiRest') ctx.t += env.measureBeats * parseInt(child.getAttribute('num') || '1', 10)
@@ -667,6 +677,43 @@ function checkFile(doc: Document | Element, meter: OpeningMeter, warn: Warnings)
   }
 }
 
+// ── Chord symbols ──
+// A <harm> holds a chord symbol as text ("Eb", "Gm7"), placed by the note it
+// points at (startid) or by its beat in the bar (tstamp, counted from 1 in the
+// meter's own unit). Baroque files use <harm> for figured bass instead, which
+// the roll doesn't show.
+
+interface HarmInBar {
+  el: Element
+  barStart: number
+}
+
+function readChords(harms: HarmInBar[], onsets: Map<string, number>, ties: TieIndex, meterUnit: number, warn: Warnings): MeiChord[] {
+  const chords: MeiChord[] = []
+  for (const { el, barStart } of harms) {
+    if (firstDeep(el, 'fb')) {
+      warn.add('figured-bass', 'Figured bass is not shown.')
+      continue
+    }
+    const text = textOf(el)
+    if (!text) continue
+    const ref = (el.getAttribute('startid') ?? '').replace(/^#/, '')
+    const tstamp = parseFloat(el.getAttribute('tstamp') ?? '')
+    // A grace note's onset is only known once it is placed, so look in the notes too.
+    let start = ref ? onsets.get(ref) ?? ties.byId.get(ref)?.start : undefined
+    if (start === undefined && !isNaN(tstamp)) start = barStart + (tstamp - 1) * (4 / meterUnit)
+    if (start === undefined) {
+      warn.add('chord-time', 'Chord symbols with no time of their own show at the start of their bar.')
+      start = barStart
+    }
+    const chord: MeiChord = { start, text, label: prettyChord(text) }
+    const id = el.getAttribute('xml:id')
+    if (id) chord.id = id
+    chords.push(chord)
+  }
+  return chords.sort((a, b) => a.start - b.start)
+}
+
 // ── Who made it ──
 // MEI names a composer several ways across its versions: a <composer> element
 // (MEI 3 and 4), a <creator> with a role (MEI 5), or a name with a role
@@ -777,6 +824,8 @@ export function parseNative(xmlText: string): MeiScore {
 
   const read: MeiNote[] = []
   const ties: TieIndex = { byId: new Map(), starts: new Set() }
+  const onsets = new Map<string, number>()
+  const harms: HarmInBar[] = []
   const layers = new Map<string, LayerState>()
   const bars: MeiBar[] = []
   let measureStart = 0
@@ -787,6 +836,7 @@ export function parseNative(xmlText: string): MeiScore {
   measures.forEach((measure, i) => {
     bars.push({ start: measureStart, label: measure.getAttribute('n') || String(i + 1) })
     let measureMax = measureStart
+    for (const el of allDeep(resolve(measure), 'harm')) harms.push({ el, barStart: measureStart })
     for (const staff of allDeep(resolve(measure), 'staff').map(resolve)) {
       const keysig = keys.byStaff.get(staff.getAttribute('n') || '') ?? keys.score
       const part = partTable.partOf(staff.getAttribute('n') || '')
@@ -795,7 +845,7 @@ export function parseNative(xmlText: string): MeiScore {
         let state = layers.get(layerKey)
         if (!state) layers.set(layerKey, (state = { last: [], lastStart: null, graces: [] }))
         const ctx = { t: measureStart }
-        const env: LayerEnv = { resolve, keysig, part, measureBeats, notes: read, warn, layer: state, ties }
+        const env: LayerEnv = { resolve, keysig, part, measureBeats, notes: read, warn, layer: state, ties, onsets }
         walkLayer(layer, ctx, env, 1)
         // Grace notes left at the end of a layer lead into its end.
         placeGraces(ctx.t, env)
@@ -822,6 +872,7 @@ export function parseNative(xmlText: string): MeiScore {
   })
 
   const notes = joinTies(read, ties, music, warn)
+  const chords = readChords(harms, onsets, ties, meterUnit, warn)
 
   return {
     title,
@@ -835,6 +886,7 @@ export function parseNative(xmlText: string): MeiScore {
     totalBeats: Math.max(maxEnd, measureStart),
     parts: keepSoundingParts(partTable.parts, notes),
     notes,
+    chords,
     warnings: warn.list(),
   }
 }
