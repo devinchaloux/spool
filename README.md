@@ -25,8 +25,10 @@ instruments the file names. The composer, and the artist for a song, show
 beside the title when the file names them. **2026-10-17:** a Notation button
 swaps the roll for the music in traditional notation, on a paper background,
 lighting each note as it sounds and scrolling with the playhead; Verovio
-draws it, downloaded only when the button is first pressed. Nothing is
-published to npm yet.
+draws it, downloaded only when the button is first pressed. **2026-10-24:**
+chord symbols show in a row over the roll, written with ♭ and ♯, and a button
+adds a bass line that holds each chord's bass note; the notation view opens
+at a smaller size and has its own zoom. Nothing is published to npm yet.
 
 ## Try it
 

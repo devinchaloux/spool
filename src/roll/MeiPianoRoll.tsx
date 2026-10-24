@@ -12,6 +12,8 @@ import { layoutLanes, widestLaneRows, MIN_LANE_HEIGHT, MIN_ROW_HEIGHT, type Lane
 import { rollToSvg } from "../render/svg";
 import { svgToPng, downloadBlob } from "../render/toPng";
 import { withNoteIds } from "../mei/noteIds";
+import { withPrettyChords } from "../mei/chords";
+import { withBassLine, hasBassLine } from "../mei/bassLine";
 import NotationView from "../notation/NotationView";
 
 /* ===========================================================================
@@ -25,7 +27,8 @@ import NotationView from "../notation/NotationView";
  * A file with several parts (instruments) shows each in its own color, on one
  * roll or one lane per part, with mute, solo and a sound for each. A toggle
  * swaps the roll for the music in notation, drawn by Verovio on request
- * (src/notation/), lit and followed by the same playhead.
+ * (src/notation/), lit and followed by the same playhead. Chord symbols show
+ * in a row under the bar numbers, and can add a bass line, as one more part.
  *
  * Usage:
  *   <MeiPianoRoll meiText={xmlString} />
@@ -93,6 +96,12 @@ export interface MeiPianoRollProps {
   notation?: boolean;
   /** The view the player opens in: "roll" (default) or "notation". */
   view?: "roll" | "notation";
+  /**
+   * Start with a bass line made from the file's chord symbols, as one more
+   * part: each chord's bass note, held until the next. The full player has a
+   * button for it either way. Default false.
+   */
+  bassLine?: boolean;
   /** Show the title line above the full player. Default true. */
   header?: boolean;
   className?: string;
@@ -145,6 +154,10 @@ function positionLabel(score: MeiScore, beat: number): string {
 // Layout constants
 const KEY_W = 46;
 const RULER_H = 22;
+// The row of chord symbols under the bar numbers, when the file has any.
+const CHORD_H = 20;
+// Notation zoom, as a multiple of Verovio's own size.
+const NOTATION_ZOOM = { min: 0.4, max: 3, step: 1.25 };
 
 // ---------------------------------------------------------------------------
 // Component
@@ -189,14 +202,16 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
   const [bpm, setBpm] = useState<number>(props.bpm ?? 120);
   const [beatQuarters, setBeatQuarters] = useState(1);
   const [zoom, setZoom] = useState<number>(props.pxPerBeat ?? 64);
+  const [notationZoom, setNotationZoom] = useState(1);
   const [loop, setLoop] = useState(false);
   const [warnings, setWarnings] = useState<MeiWarning[]>([]);
   const [showWarnings, setShowWarnings] = useState(false);
   // The piano roll or the notation, and the file as the notation view draws
-  // it: with an id on every note, so both views name a note the same way.
+  // it: with an id on every note, so both views name a note the same way, and
+  // its chord symbols with ♭ and ♯.
   const offersNotation = props.notation !== false;
   const [view, setView] = useState<"roll" | "notation">(offersNotation && props.view === "notation" ? "notation" : "roll");
-  const [fileText, setFileText] = useState("");
+  const [notationText, setNotationText] = useState("");
   const [notationLoad, setNotationLoad] = useState<{ status: "loading" | "ready" | "error"; message: string }>({ status: "ready", message: "" });
   // Set by the notation view while it shows; the draw loop hands it the playhead.
   const notationFrameRef = useRef<((beat: number, playing: boolean) => void) | null>(null);
@@ -209,6 +224,13 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
 
   // ---- Parts ---------------------------------------------------------------
   const [parts, setParts] = useState<MeiPart[]>([]);
+  // The score as the file reads, before any bass line; and whether the bass
+  // line is on, and can be (the file has chord symbols that name a note).
+  const baseScoreRef = useRef<MeiScore | null>(null);
+  const [bass, setBass] = useState(!!props.bassLine);
+  const bassRef = useRef(bass);
+  const [canBass, setCanBass] = useState(false);
+  const [hasChords, setHasChords] = useState(false);
   // The widest part's pitch range, in rows: sets how tall separated lanes must be.
   const [laneRows, setLaneRows] = useState(0);
   const [separate, setSeparate] = useState<boolean>(!!props.separateParts);
@@ -274,11 +296,12 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
     return () => mo.disconnect();
   }, [props.accent]);
   const noteColor = props.accent ?? pageAccent ?? theme.note;
-  const colors = props.partColors?.length ? props.partColors : defaultPartColors(Math.max(parts.length, 1), theme, noteColor);
+  // A part the page gives no color (the bass line, say) takes its default.
+  const colors = defaultPartColors(Math.max(parts.length, 1), theme, noteColor).map((c, i) => props.partColors?.[i] ?? c);
   const colorsKey = colors.join(",");
   // Notation is on paper whatever the theme, so its parts take the strengths
   // that read on a light background, unless the page chose the colors.
-  const paperColors = props.partColors?.length ? props.partColors : defaultPartColors(Math.max(parts.length, 1), THEMES.paper, props.accent ?? pageAccent ?? THEMES.paper.note);
+  const paperColors = defaultPartColors(Math.max(parts.length, 1), THEMES.paper, props.accent ?? pageAccent ?? THEMES.paper.note).map((c, i) => props.partColors?.[i] ?? c);
   useEffect(() => {
     themeRef.current = theme;
     colorsRef.current = colorsKey.split(",");
@@ -422,6 +445,45 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
     seekToBeat(0);
   }
 
+  // ---- The score in use ----------------------------------------------------
+  // The file as read, or with the bass line added. A new file starts from the
+  // top, every part with its starting sound, unmuted. The bass line coming or
+  // going keeps the playhead, playback, and the other parts' sounds and mutes.
+  function showScore(score: MeiScore, fresh: boolean) {
+    const resume = !fresh && wantPlayRef.current;
+    if (resume) pause();
+    else if (fresh) {
+      wantPlayRef.current = false;
+      setPlaying(false);
+    }
+    scoreRef.current = score;
+    tx.current.beat = fresh ? 0 : Math.min(tx.current.beat, score.totalBeats);
+    transportRef.current?.setScore(score.notes, score.totalBeats);
+    transportRef.current?.seek(tx.current.beat);
+    engineRef.current?.setPartCount(score.parts.length);
+    setParts(score.parts);
+    setLaneRows(widestLaneRows(score.notes));
+    const count = score.parts.length;
+    setMuted((m) => (fresh ? new Set() : new Set([...m].filter((p) => p < count))));
+    setSoloed((m) => (fresh ? new Set() : new Set([...m].filter((p) => p < count))));
+    const starting = startingSounds(score.parts, props.sound, props.partSounds);
+    partSoundsRef.current = fresh ? starting : starting.map((id, i) => partSoundsRef.current[i] ?? id);
+    setPartSounds(partSoundsRef.current);
+    soundsVersionRef.current++;
+    // A failed download for a part now gone is no longer worth a message.
+    setSoundLoad({ status: "ready", ids: [] });
+    setWarnings(score.warnings);
+    drawRef.current();
+    if (resume) play();
+  }
+  useEffect(() => {
+    bassRef.current = bass;
+    const base = baseScoreRef.current;
+    if (base) showScore(bass ? withBassLine(base) : base, false);
+    // Only the toggle itself; showScore reads the rest through refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bass]);
+
   // ---- Setup: parse, canvas sizing, input, render loop -------------------
   useEffect(() => {
     let canceled = false;
@@ -438,23 +500,11 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
         if (offersNotation) text = withNoteIds(text);
         const score = parseNative(text);
         if (canceled) return;
-        scoreRef.current = score;
-        // A new file: stop, back to the start, and give the transport its notes.
-        wantPlayRef.current = false;
-        setPlaying(false);
-        tx.current.beat = 0;
-        transportRef.current?.setScore(score.notes, score.totalBeats);
-        engineRef.current?.setPartCount(score.parts.length);
-        // Each part starts with its own sound, unmuted.
-        setParts(score.parts);
-        setLaneRows(widestLaneRows(score.notes));
-        setMuted(new Set());
-        setSoloed(new Set());
-        partSoundsRef.current = startingSounds(score.parts, props.sound, props.partSounds);
-        setPartSounds(partSoundsRef.current);
-        soundsVersionRef.current++;
-        setWarnings(score.warnings);
-        setFileText(text);
+        baseScoreRef.current = score;
+        setCanBass(hasBassLine(score.chords));
+        setHasChords(score.chords.length > 0);
+        showScore(bassRef.current ? withBassLine(score) : score, true);
+        setNotationText(offersNotation ? withPrettyChords(text) : text);
         onLoadRef.current?.(score);
         setBeatQuarters(tempoBeat(score.meterCount, score.meterUnit));
         if (props.bpm == null) {
@@ -500,7 +550,8 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
     const lanesFor = (score: MeiScore, separate: boolean, cssH: number): Lane[] => {
       const key = `${separate}|${cssH}`;
       if (lanesCache.score !== score || lanesCache.key !== key) {
-        lanesCache = { score, key, lanes: layoutLanes(score.notes, { separate, top: RULER_H, height: cssH - RULER_H }) };
+        const top = RULER_H + (score.chords.length ? CHORD_H : 0);
+        lanesCache = { score, key, lanes: layoutLanes(score.notes, { separate, top, height: cssH - top }) };
       }
       return lanesCache.lanes;
     };
@@ -623,6 +674,35 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
           ctx.fillStyle = th.text;
           ctx.fillText(label, KEY_W + 7, lane.top + 10);
         }
+      }
+
+      // --- chord symbols, in their row under the bar numbers ---
+      // Each is clipped to the room before the next, so none run together
+      // when zoomed out.
+      if (score.chords.length) {
+        ctx.fillStyle = th.background;
+        ctx.fillRect(KEY_W, RULER_H, trackW, CHORD_H);
+        ctx.strokeStyle = th.gridBeat;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(KEY_W, RULER_H + CHORD_H - 0.5);
+        ctx.lineTo(cssW, RULER_H + CHORD_H - 0.5);
+        ctx.stroke();
+        ctx.font = "600 12px ui-monospace, Menlo, Consolas, monospace";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = th.text;
+        const chords = score.chords.filter((c, i, all) => i === 0 || c.start > all[i - 1].start + 1e-6);
+        chords.forEach((c, i) => {
+          const x = xFor(c.start);
+          const right = xFor(chords[i + 1]?.start ?? score.totalBeats);
+          if (right < KEY_W || x > cssW) return;
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(x, RULER_H, right - x - 2, CHORD_H);
+          ctx.clip();
+          ctx.fillText(c.label, x + 4, RULER_H + CHORD_H / 2);
+          ctx.restore();
+        });
       }
 
       // playhead
@@ -834,6 +914,13 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
     else if (e.key === " " || e.key === "Spacebar") { e.preventDefault(); togglePlay(); }
   };
 
+  // Each view keeps its own zoom: the roll's in pixels a beat, the notation's
+  // as a multiple of Verovio's size.
+  const zoomBy = (dir: 1 | -1) => {
+    if (view === "roll") setZoom((z) => clamp(Math.round(dir > 0 ? z * 1.25 : z / 1.25), 28, 160));
+    else setNotationZoom((z) => clamp(dir > 0 ? z * NOTATION_ZOOM.step : z / NOTATION_ZOOM.step, NOTATION_ZOOM.min, NOTATION_ZOOM.max));
+  };
+
   const onBpmChange = (v: number) => {
     if (!(v > 0)) return;
     setBpm(v);
@@ -844,7 +931,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
   const ready = status === "ready";
   // Separated, the roll grows rather than squeeze each lane below a readable height.
   const laneHeight = Math.max(MIN_LANE_HEIGHT, laneRows * MIN_ROW_HEIGHT);
-  const canvasHeight = separate && multi ? Math.max(height, RULER_H + parts.length * (laneHeight + 6)) : height;
+  const canvasHeight = separate && multi ? Math.max(height, RULER_H + (hasChords ? CHORD_H : 0) + parts.length * (laneHeight + 6)) : height;
   const soundLabels = soundLoad.ids.map((id) => findSound(id).label).join(", ");
   const soundSelect = (part: number) => (
     <select
@@ -893,7 +980,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
       {parts.map((part, i) => (
         <div key={i} className={"mpr-part" + (isAudible(i) ? "" : " mpr-part-off")}>
           <span className="mpr-swatch" style={{ background: colors[i] ?? colors[0] }} />
-          <span className="mpr-part-name" title={part.label}>{part.label}</span>
+          <span className="mpr-part-name" title={part.generated ? "Made from the chord symbols. It isn't in the file." : part.label}>{part.label}</span>
           <button className="mpr-ms" aria-pressed={muted.has(i)} onClick={() => setMuted((m) => toggleIn(m, i))} title="Mute" aria-label={`Mute ${part.label}`}>M</button>
           <button className="mpr-ms mpr-solo" aria-pressed={soloed.has(i)} onClick={() => setSoloed((m) => toggleIn(m, i))} title="Solo" aria-label={`Solo ${part.label}`}>S</button>
           {soundSelect(i)}
@@ -924,11 +1011,12 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
         />
         {!onRoll && ready && scoreRef.current && (
           <NotationView
-            text={fileText}
+            text={notationText}
             score={scoreRef.current}
             colors={paperColors}
             audible={parts.length ? parts.map((_p, i) => isAudible(i)) : [true]}
             height={height}
+            zoom={notationZoom}
             frameRef={notationFrameRef}
             onSeek={seekToBeat}
             onKeyDown={onNotationKey}
@@ -958,6 +1046,11 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
           <span className="mpr-spacer" />
           {!multi && soundSelect(0)}
           {notationToggle}
+          {canBass && (
+            <button className="mpr-icon" onClick={() => setBass((v) => !v)} disabled={!ready} aria-pressed={bass} title="Bass line from the chord symbols" aria-label="Bass line">
+              <Icon name="bass" />
+            </button>
+          )}
           {multi && onRoll && (
             <button className="mpr-icon" onClick={() => setSeparate((v) => !v)} aria-pressed={separate} title="Each part on its own roll" aria-label="Separate parts">
               <Icon name="lanes" />
@@ -967,14 +1060,14 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
             <input type="number" min={10} max={400} value={Math.round(bpm / beatQuarters)} aria-label="Tempo" onChange={(e) => onBpmChange(parseFloat(e.target.value) * beatQuarters)} />
             BPM
           </label>
-          {onRoll && <span className="mpr-zoom">
-            <button className="mpr-icon" onClick={() => setZoom((z) => clamp(Math.round(z / 1.25), 28, 160))} title="Zoom out" aria-label="Zoom out">
+          <span className="mpr-zoom">
+            <button className="mpr-icon" onClick={() => zoomBy(-1)} title="Zoom out" aria-label="Zoom out">
               <Icon name="minus" />
             </button>
-            <button className="mpr-icon" onClick={() => setZoom((z) => clamp(Math.round(z * 1.25), 28, 160))} title="Zoom in" aria-label="Zoom in">
+            <button className="mpr-icon" onClick={() => zoomBy(1)} title="Zoom in" aria-label="Zoom in">
               <Icon name="plus" />
             </button>
-          </span>}
+          </span>
           {onRoll && (
             <button className="mpr-icon" onClick={saveImage} disabled={!ready} title="Save the visible bars as a PNG" aria-label="Save image">
               <Icon name="image" />
@@ -1042,7 +1135,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
 // ── Icons ──
 // Drawn inline so the player needs no icon font or image files.
 
-type IconName = "play" | "pause" | "start" | "loop" | "minus" | "plus" | "image" | "expand" | "collapse" | "lanes" | "notation";
+type IconName = "play" | "pause" | "start" | "loop" | "minus" | "plus" | "image" | "expand" | "collapse" | "lanes" | "notation" | "bass";
 
 function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   const solid = name === "play" || name === "pause";
@@ -1068,6 +1161,7 @@ function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
       {name === "expand" && <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />}
       {name === "collapse" && <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7" />}
       {name === "lanes" && <><rect x="3" y="4" width="18" height="6" rx="1.5" /><rect x="3" y="14" width="18" height="6" rx="1.5" /></>}
+      {name === "bass" && <><path d="M5 9.5a5 5 0 0 1 10 0c0 5.5-4.5 9-10 10.5" /><circle cx="6.5" cy="9.5" r="1.6" fill="currentColor" stroke="none" /><circle cx="19" cy="7.5" r="1.2" fill="currentColor" stroke="none" /><circle cx="19" cy="12.5" r="1.2" fill="currentColor" stroke="none" /></>}
       {name === "notation" && <><path d="M3 6h18M3 10h18M3 14h18M3 18h18" strokeWidth={1.2} /><ellipse cx="9" cy="16" rx="2.6" ry="2" fill="currentColor" stroke="none" /><path d="M11.4 16V4.5" /></>}
     </svg>
   );
@@ -1097,8 +1191,8 @@ const CSS = `
 .mpr-notation { display: flex; overflow: auto; outline: none; cursor: grab; touch-action: pan-x pan-y; }
 .mpr-notation:focus-visible { box-shadow: inset 0 0 0 2px var(--mpr-accent); }
 .mpr-notation > svg { flex: none; margin: auto 8px; }
-.mpr-notation g.note { cursor: pointer; }
-.mpr-notation g.note.mpr-sounding { fill: var(--mpr-lit); color: var(--mpr-lit); }
+.mpr-notation g.note, .mpr-notation g.harm { cursor: pointer; }
+.mpr-notation g.note.mpr-sounding, .mpr-notation g.harm.mpr-sounding { fill: var(--mpr-lit); color: var(--mpr-lit); }
 
 .mpr-bar, .mpr-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--mpr-border); }
 .mpr-foot { gap: 12px; padding: 8px 12px; }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type MutableRefObject } from "react";
-import type { MeiNote, MeiScore } from "../mei/types";
+import type { MeiScore } from "../mei/types";
 import { THEMES } from "../roll/themes";
 import { engrave, type Engraving } from "./engrave";
 
@@ -23,6 +23,8 @@ export interface NotationViewProps {
   /** Whether each part is heard; silent parts' notes aren't lit. */
   audible: boolean[];
   height: number;
+  /** How large to draw it: 1 is Verovio's own size, or smaller if that's taller than the player. */
+  zoom: number;
   /** The view sets this; the player calls it every frame with the playhead. */
   frameRef: MutableRefObject<((beat: number, playing: boolean) => void) | null>;
   onSeek: (beat: number) => void;
@@ -30,10 +32,10 @@ export interface NotationViewProps {
   onStatus: (status: "loading" | "ready" | "error", message?: string) => void;
 }
 
-// Never larger than twice Verovio's size: a one-line tune shouldn't fill the
-// player with a giant staff. A score taller than the player scrolls instead
-// of shrinking below half.
-const MAX_ENLARGE = 2;
+// At zoom 1, Verovio's own size, shrunk to fit a score taller than the
+// player, though never below half: past that it scrolls instead. Fitting a
+// one-line tune to the player's height made a giant staff, so it never grows
+// unless the listener zooms in.
 const MIN_SHRINK = 0.5;
 const PAD = 8;
 // The paper theme's darkest tone, for staves, notes and text.
@@ -56,7 +58,7 @@ function toSafeSvg(markup: string): SVGSVGElement | null {
 }
 
 export default function NotationView(props: NotationViewProps) {
-  const { text, score, height } = props;
+  const { text, score, height, zoom } = props;
   const boxRef = useRef<HTMLDivElement | null>(null);
   const [engraving, setEngraving] = useState<Engraving | null>(null);
   // Refs, so the frame function set up once sees the latest of these.
@@ -88,16 +90,23 @@ export default function NotationView(props: NotationViewProps) {
     if (!box || !engraving) return;
     const svg = toSafeSvg(engraving.svg);
     if (!svg) return;
-    const k = Math.max(MIN_SHRINK, Math.min(MAX_ENLARGE, (height - 2 * PAD) / (engraving.height || 1)));
+    const k = zoom * Math.max(MIN_SHRINK, Math.min(1, (height - 2 * PAD) / (engraving.height || 1)));
+    // A new zoom keeps the same music in the middle of the view, or the start
+    // in place when it all fitted.
+    const old = box.firstElementChild as SVGSVGElement | null;
+    const middle = old && old.clientWidth > box.clientWidth ? (box.scrollLeft + box.clientWidth / 2) / old.clientWidth : null;
     svg.style.width = `${engraving.width * k}px`;
     svg.style.height = `${engraving.height * k}px`;
     box.replaceChildren(svg);
+    if (middle !== null) box.scrollLeft = middle * engraving.width * k - box.clientWidth / 2;
 
-    // Every drawn note by id, and every sound by the notes it lights.
+    // Every drawn note (and chord symbol, lit by the bass line) by id, and every sound by what it lights.
     const drawn = new Map<string, Element>();
-    for (const g of Array.from(svg.querySelectorAll("g.note"))) if (g.id) drawn.set(g.id, g);
-    const byId = new Map<string, MeiNote>();
-    for (const n of score.notes) for (const id of n.ids ?? []) if (!byId.has(id)) byId.set(id, n);
+    for (const g of Array.from(svg.querySelectorAll("g.note, g.harm"))) if (g.id) drawn.set(g.id, g);
+    // Where clicking each drawn note or chord symbol moves the playhead.
+    const startOf = new Map<string, number>();
+    for (const n of score.notes) for (const id of n.ids ?? []) if (!startOf.has(id)) startOf.set(id, n.start);
+    for (const c of score.chords) if (c.id && !startOf.has(c.id)) startOf.set(c.id, c.start);
     const sorted = [...score.notes].sort((a, b) => a.start - b.start);
 
     // Where each note sits along the line, measured once.
@@ -173,9 +182,9 @@ export default function NotationView(props: NotationViewProps) {
       dragging = false;
       box.style.cursor = "";
       if (moved >= 4) return;
-      const g = (e.target as Element | null)?.closest?.("g.note");
-      const note = g && byId.get(g.id);
-      if (note) onSeekRef.current(note.start);
+      const g = (e.target as Element | null)?.closest?.("g.note, g.harm");
+      const start = g ? startOf.get(g.id) : undefined;
+      if (start !== undefined) onSeekRef.current(start);
     };
     box.addEventListener("wheel", onWheel, { passive: false });
     box.addEventListener("pointerdown", onPointerDown);
@@ -190,7 +199,7 @@ export default function NotationView(props: NotationViewProps) {
     };
     // frameRef is a ref; the rest comes in through refs above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engraving, score, height]);
+  }, [engraving, score, height, zoom]);
 
   return (
     <div
@@ -199,7 +208,7 @@ export default function NotationView(props: NotationViewProps) {
       style={{ height, background: THEMES.paper.background, color: INK, fill: INK }}
       tabIndex={0}
       onKeyDown={props.onKeyDown}
-      title="Drag or scroll to move. Click a note to set the playhead. Space plays; Home returns to the start."
+      title="Drag or scroll to move. Click a note or chord symbol to set the playhead. Space plays; Home returns to the start."
     />
   );
 }

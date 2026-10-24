@@ -33,6 +33,20 @@ export interface MeiPart {
   instrument?: string
   /** The instrument's General MIDI program (0–127), when an `<instrDef>` gives one. */
   midiProgram?: number
+  /** True for a part Spool wrote, not the file: the bass line from the chord symbols. */
+  generated?: boolean
+}
+
+/** A chord symbol written over the music (`<harm>`), such as "Eb" or "Gm7". */
+export interface MeiChord {
+  /** Onset, in quarter-note beats. */
+  start: number
+  /** The symbol as the file writes it. */
+  text: string
+  /** The symbol as shown: with ♭ and ♯ for the file's b and # ("E♭"). */
+  label: string
+  /** The `<harm>`'s xml:id, if it has one. */
+  id?: string
 }
 
 /**
@@ -73,5 +87,7 @@ export interface MeiScore {
   /** Every part that has notes, in score order. A file with one staff has one part. */
   parts: MeiPart[]
   notes: MeiNote[]
+  /** Every chord symbol, in time order. Empty when the file has none. */
+  chords: MeiChord[]
   warnings: MeiWarning[]
 }
