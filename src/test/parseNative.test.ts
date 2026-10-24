@@ -53,9 +53,14 @@ describe('parseNative: pitch and time', () => {
     expect(s.notes[2].dur).toBeCloseTo(1 / 3)
   })
 
+  it('names each note as the file spells it, in its written octave', () => {
+    const s = parseNative(mei('<note pname="b" oct="4" dur="4" accid="f"/><note pname="b" oct="4" dur="4"><accid accid.ges="f"/></note><note pname="f" oct="4" dur="4" accid="x"/><note pname="c" oct="4" dur="4" accid="f"/>'))
+    expect(s.notes.map((n) => [n.name, n.midi])).toEqual([['B♭4', 70], ['B♭4', 70], ['F♯♯4', 67], ['C♭4', 59]])
+  })
+
   it('applies the key signature unless the note has its own accidental', () => {
     const s = parseNative(mei('<note pname="f" oct="4" dur="4"/><note pname="f" oct="4" dur="4" accid="n"/><rest dur="2"/>', 'meter.count="4" meter.unit="4" keysig="1s"'))
-    expect(s.notes.map((n) => n.name)).toEqual(['F#4', 'F4'])
+    expect(s.notes.map((n) => n.name)).toEqual(['F♯4', 'F4'])
   })
 
   it('times each layer from the start of the bar', () => {
@@ -107,17 +112,17 @@ describe('parseNative: opening meter and key', () => {
   })
 
   it('reads the key from <scoreDef>, MEI 3 key.sig and <keySig>', () => {
-    expect(parseNative(withScoreDef('keysig="1s"')).notes[0].name).toBe('F#4')
-    expect(parseNative(mei(layer, 'key.sig="1s"')).notes[0].name).toBe('F#4')
+    expect(parseNative(withScoreDef('keysig="1s"')).notes[0].name).toBe('F♯4')
+    expect(parseNative(mei(layer, 'key.sig="1s"')).notes[0].name).toBe('F♯4')
     const xml = mei(layer, '').replace('lines="5" />', 'lines="5"><keySig sig="1s"/></staffDef>')
-    expect(parseNative(xml).notes[0].name).toBe('F#4')
+    expect(parseNative(xml).notes[0].name).toBe('F♯4')
   })
 
   it("gives each staff its own key, the staff's before the score's", () => {
     const xml = withScoreDef('keysig="1s" meter.count="4" meter.unit="4"')
       .replace('</staffGrp>', '<staffDef n="2" lines="5" keysig="1f"/></staffGrp>')
       .replace('</staff></measure>', '</staff><staff n="2"><layer n="1"><note pname="b" oct="3" dur="1"/></layer></staff></measure>')
-    expect(parseNative(xml).notes.map((n) => n.name)).toEqual(['F#4', 'A#3'])
+    expect(parseNative(xml).notes.map((n) => n.name)).toEqual(['F♯4', 'B♭3'])
   })
 })
 

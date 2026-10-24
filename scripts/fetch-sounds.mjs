@@ -20,6 +20,15 @@
 // presets, so demo/sounds.json maps the few names that differ. An instrument
 // with none (the piano, guitar and pizzicato, which die away anyway) plays its
 // recording once.
+//
+// Some of those loops are the soundfont's own single-cycle loops, a few
+// milliseconds long (the synth bass loops samples 8 to 408). They fit the
+// soundfont's raw sample, not these recordings, which are rendered note by
+// note: repeating 9 ms of a 44 Hz note turns every note into the same 110 Hz
+// buzz. A loop shorter than `loops.shortest` samples (at 44.1 kHz, as smplr
+// reads them) is dropped, so that note plays its recording once. The folder
+// is named after that limit too, so a browser that cached the old loops
+// fetches the new ones.
 // Only the instruments the player offers are copied, read from
 // src/audio/sounds.ts so the two lists can't drift.
 //
@@ -30,7 +39,7 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dirname, '..')
 const { repo: REPO, commit: COMMIT, loops: LOOPS } = JSON.parse(readFileSync(join(ROOT, 'demo', 'sounds.json'), 'utf8'))
-const DEST = join(ROOT, 'demo', 'public', 'sounds', `fluidr3-${COMMIT.slice(0, 7)}-${LOOPS.commit.slice(0, 7)}`)
+const DEST = join(ROOT, 'demo', 'public', 'sounds', `fluidr3-${COMMIT.slice(0, 7)}-${LOOPS.commit.slice(0, 7)}-${LOOPS.shortest}`)
 
 // The third argument of each sampled('id', 'Label', 'instrument') line.
 const soundsTs = readFileSync(join(ROOT, 'src', 'audio', 'sounds.ts'), 'utf8')
@@ -66,6 +75,7 @@ for (const name of names) {
 // ── Loop points ──
 let looped = 0
 const unlooped = []
+const shortened = []
 for (const name of names) {
   const file = join(DEST, `${name}-loop.json`)
   if (existsSync(file)) { looped++; continue }
@@ -82,7 +92,11 @@ for (const name of names) {
     console.error(`Not loop data: ${url}`)
     process.exit(1)
   }
-  writeFileSync(file, JSON.stringify(data))
+  const kept = Object.fromEntries(Object.entries(data).filter(([, [start, end]]) => end - start >= LOOPS.shortest))
+  const dropped = Object.keys(data).length - Object.keys(kept).length
+  if (dropped) shortened.push(`${name} (${dropped} of ${Object.keys(data).length} notes)`)
+  if (!Object.keys(kept).length) { unlooped.push(name); continue }
+  writeFileSync(file, JSON.stringify(kept))
   looped++
 }
 
@@ -95,3 +109,4 @@ Loop points from https://github.com/${LOOPS.repo} (commit ${LOOPS.commit}).
 
 console.log(`Sounds: ${fetched} fetched, ${names.length - fetched} already present, in ${DEST}`)
 console.log(`Loop points: ${looped} instruments${unlooped.length ? `; none for ${unlooped.join(', ')}` : ''}`)
+if (shortened.length) console.log(`Loops too short to use, dropped: ${shortened.join(', ')}`)

@@ -587,6 +587,20 @@ kept its level past five seconds with them.
 (`samplesUrl`) get no loop points, so their long sampled notes still stop at
 the recording's end.
 
+**Note (2026-10-24).** Three instruments' loop points were wrong for these
+recordings: the synth bass, the clarinet and the vibraphone loop a single
+cycle of the soundfont's raw sample, 1 to 9 ms long (the synth bass loops
+samples 8 to 408 of every note). The recordings are rendered note by note, so
+that stretch is a sliver of the attack: rendered offline through smplr, a held
+F1 on the synth bass came out as a 110 Hz buzz, the same for every note,
+instead of 43.7 Hz. The maintainer heard it on the bass line ("they sound
+wrong"). The build now drops any loop shorter than 4410 samples (0.1 s;
+`loops.shortest` in `demo/sounds.json`), which removes every loop of those
+three and none of the others (the shortest kept is the trumpet's, 152 ms).
+They play their recording once, about three seconds, like the piano. The
+hosted copy's folder name carries the limit, so browsers holding the old loop
+files for a year fetch the new ones.
+
 ### 2026-10-17: Verovio draws notation; it doesn't read the timing
 
 **Choice.** Verovio is used for what it is built for: engraving the file as
@@ -680,11 +694,68 @@ reported, not shown. The maintainer's choices (2026-10-24):
 - *An octave under the lowest written note:* it would move from piece to
   piece; a fixed bass register reads as a bass part.
 
+**Note (2026-10-24, later).** Chord symbols were too faint, in the roll's
+muted text at 12 px. They now take a new strongest text color (`textStrong`,
+see "text contrast, as the site holds it"), bold at 13 px in a 24 px row, and
+the chord under the playhead takes the playhead's color, so the chord sounding
+is the one lit. The bass line's notes are named as their symbol spells them
+(E♭2 under "Eb"), as written notes now are ("note names as the file spells
+them"). The synth bass the bass line starts on played every note as the same
+buzz until its loop points were dropped (see the note under "held notes
+sustain"); it now plays each recording once, about three seconds, so a chord
+held longer goes quiet before it changes.
+
 **Why.** The maintainer's lead sheets carry chord symbols, and a producer
 reads a lead sheet as harmony and a bass line as much as a melody
 (2026-10-24). On the 617 sample files the stress test changed only by the new
 figured-bass report (16 files; files read with no warnings went from 140 to
 139); every chord symbol in the four sample lead sheets reads.
+
+### 2026-10-24: note names as the file spells them
+
+**Choice.** A note's name on the roll and in images is spelled as the file
+writes it: its letter, its accidental (written, else sounding, else from the
+key signature) as a sign, and its written octave. A B flat is "B♭4", not
+"A#4"; a C flat written in octave 4 is "C♭4", though it sounds as B3; a double
+sharp is "F♯♯4". The keyboard's octave names (C4) are unchanged: no file
+spells them.
+
+**Rejected.** *Sharps for every black key,* as before: in a flat key every
+accidental read wrong (the maintainer, 2026-10-24: "the note names … should
+have the correct note name as it appears in the MEI file").
+
+**Why.** The roll is derived from the encoding; a name the file doesn't use
+misreports it. Signs match the chord symbols ("one idea, one wording").
+
+### 2026-10-24: text contrast, as the site holds it
+
+**Choice.** Text on the roll is held to WCAG AA for normal text (4.5:1)
+against the worst background it is drawn on, as devinchaloux-site holds its
+own palette (its `check:contrast`); `src/test/contrast.test.ts` checks every
+built-in theme. Following the site's lift of 2026-10-14 (its body text was
+"too dark", the look "too muted"):
+
+- **Lighter text.** Studio's text (bar numbers, octave names, lane labels)
+  goes from `#8b95ad` to the site's lifted muted `#b9bfcc`; neon's from
+  `#7f89c9` to `#a9b2e6`. Paper and ink already matched the site's light text.
+- **A strongest step.** Themes gain `textStrong` (optional for custom themes;
+  it falls back to `text`), for the chord symbols: the site's `#eef0f4` in
+  studio, `#0e0f14` on paper, white on neon, black in ink.
+- **Note names that read on their note.** White on the bright note colors
+  measured 1.8 to 2.9:1. A note's name now takes the theme's `noteText` where
+  that reaches 4.5:1, else near-black or white, whichever reads better
+  (`inkOn`): dark ink on bright notes, as the site puts dark ink on a filled
+  accent.
+- **The demo's chrome** used the site's palette from before the lift; it now
+  copies the lifted values (`demo/site.ts`), and the player's fallback colors
+  for a page with no palette of its own follow them too.
+
+**Rejected.** *Lighter backgrounds for contrast:* the site found the problem
+was text too dim, not a ground too dark; it darkened its ground.
+
+**Why.** The maintainer asked for chord symbols that stand out and pointed to
+the site's accessibility work (2026-10-24); the same faint grey ran through
+the roll.
 
 ## Open questions
 

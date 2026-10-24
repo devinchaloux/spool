@@ -23,22 +23,40 @@ const SLASH_BASS = /\/\s*([A-G])([b#♭♯𝄫𝄪𝄬]*)\s*\)?\s*$/u
 // "N.C.": no chord, so the bass rests.
 const NO_CHORD = /^\s*\(?\s*N\.?\s*C\.?\s*\)?\s*$/i
 
-function pitchClass(letter: string, accidentals: string): number {
-  let pc = STEP[letter]
-  for (const a of accidentals) pc += ALTER[a]
-  return ((pc % 12) + 12) % 12
+/** A note as a chord symbol spells it: its letter, and how far its accidentals raise (+) or lower (−) it. */
+export interface Spelling {
+  letter: string
+  alter: number
+}
+
+function spell(letter: string, accidentals: string): Spelling {
+  let alter = 0
+  for (const a of accidentals) alter += ALTER[a]
+  return { letter, alter }
 }
 
 /**
- * The pitch class (0 = C) a bass plays under a chord symbol: the note after a
- * slash, else the root. "none" for "N.C."; null for a symbol it can't read.
+ * The note a bass plays under a chord symbol, as the symbol spells it: the
+ * note after a slash, else the root. "none" for "N.C."; null for a symbol it
+ * can't read.
  */
-export function chordBass(symbol: string): number | 'none' | null {
+export function chordBassNote(symbol: string): Spelling | 'none' | null {
   if (NO_CHORD.test(symbol)) return 'none'
   const root = ROOT.exec(symbol)
   if (!root) return null
   const bass = SLASH_BASS.exec(symbol)
-  return bass ? pitchClass(bass[1], bass[2]) : pitchClass(root[1], root[2])
+  return bass ? spell(bass[1], bass[2]) : spell(root[1], root[2])
+}
+
+/** The pitch class (0 = C) of a spelled note. */
+export function pitchClassOf(note: Spelling): number {
+  return (((STEP[note.letter] + note.alter) % 12) + 12) % 12
+}
+
+/** The pitch class (0 = C) a bass plays under a chord symbol; "none" for "N.C."; null for a symbol it can't read. */
+export function chordBass(symbol: string): number | 'none' | null {
+  const note = chordBassNote(symbol)
+  return note === null || note === 'none' ? note : pitchClassOf(note)
 }
 
 // ── Showing a symbol ──

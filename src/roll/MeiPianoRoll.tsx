@@ -6,7 +6,7 @@ import { tempoBeat, BEAT_NAMES } from "./tempo";
 import { Transport } from "../audio/transport";
 import { SOUNDS, DEFAULT_SOUND, SAMPLE_CREDIT, findSound } from "../audio/sounds";
 import { soundForPart } from "../audio/instruments";
-import { resolveTheme, shade, THEMES, type RollTheme, type ThemeName } from "./themes";
+import { resolveTheme, shade, inkOn, THEMES, type RollTheme, type ThemeName } from "./themes";
 import { partColors as defaultPartColors } from "./noteColors";
 import { layoutLanes, widestLaneRows, MIN_LANE_HEIGHT, MIN_ROW_HEIGHT, type Lane } from "./lanes";
 import { rollToSvg } from "../render/svg";
@@ -155,7 +155,7 @@ function positionLabel(score: MeiScore, beat: number): string {
 const KEY_W = 46;
 const RULER_H = 22;
 // The row of chord symbols under the bar numbers, when the file has any.
-const CHORD_H = 20;
+const CHORD_H = 24;
 // Notation zoom, as a multiple of Verovio's own size.
 const NOTATION_ZOOM = { min: 0.4, max: 3, step: 1.25 };
 
@@ -653,7 +653,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
           ctx.lineWidth = 1;
           ctx.stroke();
           if (w > 24 && noteH > 12) {
-            ctx.fillStyle = active ? shade(th.activeNote, -0.8) : th.noteText;
+            ctx.fillStyle = active ? shade(th.activeNote, -0.8) : inkOn(color, th.noteText);
             ctx.font = "10px ui-monospace, Menlo, Consolas, monospace";
             ctx.textBaseline = "middle";
             ctx.fillText(n.name, x + 5, y + h / 2 + 1);
@@ -677,8 +677,9 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
       }
 
       // --- chord symbols, in their row under the bar numbers ---
-      // Each is clipped to the room before the next, so none run together
-      // when zoomed out.
+      // In the theme's strongest text, the one under the playhead in its color,
+      // each clipped to the room before the next so none run together when
+      // zoomed out.
       if (score.chords.length) {
         ctx.fillStyle = th.background;
         ctx.fillRect(KEY_W, RULER_H, trackW, CHORD_H);
@@ -688,14 +689,16 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
         ctx.moveTo(KEY_W, RULER_H + CHORD_H - 0.5);
         ctx.lineTo(cssW, RULER_H + CHORD_H - 0.5);
         ctx.stroke();
-        ctx.font = "600 12px ui-monospace, Menlo, Consolas, monospace";
+        ctx.font = "700 13px ui-monospace, Menlo, Consolas, monospace";
         ctx.textBaseline = "middle";
-        ctx.fillStyle = th.text;
         const chords = score.chords.filter((c, i, all) => i === 0 || c.start > all[i - 1].start + 1e-6);
         chords.forEach((c, i) => {
+          const next = chords[i + 1]?.start ?? score.totalBeats;
           const x = xFor(c.start);
-          const right = xFor(chords[i + 1]?.start ?? score.totalBeats);
+          const right = xFor(next);
           if (right < KEY_W || x > cssW) return;
+          const current = t.beat >= c.start - 1e-6 && t.beat < next - 1e-6;
+          ctx.fillStyle = current ? th.playhead : th.textStrong ?? th.text;
           ctx.save();
           ctx.beginPath();
           ctx.rect(x, RULER_H, right - x - 2, CHORD_H);
@@ -1174,8 +1177,8 @@ function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
    the one canvas element painted with the page's accent. */
 const CSS = `
 .mpr-root {
-  --mpr-panel: var(--surface, #141823); --mpr-panel2: var(--surface-2, #1b2030); --mpr-border: var(--border, #232a3b);
-  --mpr-text: var(--text-strong, #e7ecf5); --mpr-muted: var(--text-muted, #8b95ad); --mpr-accent: var(--accent, #4f8cff);
+  --mpr-panel: var(--surface, #121419); --mpr-panel2: var(--surface-2, #181b21); --mpr-border: var(--border, #23262d);
+  --mpr-text: var(--text-strong, #eef0f4); --mpr-muted: var(--text-muted, #b9bfcc); --mpr-accent: var(--accent, #4f8cff);
   font: 13px/1.4 var(--font-mono, ui-monospace, Menlo, Consolas, monospace);
   color: var(--mpr-text); background: var(--mpr-panel);
   border: 1px solid var(--mpr-border); border-radius: var(--radius, 10px); overflow: hidden;
