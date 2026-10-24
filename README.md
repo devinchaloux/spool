@@ -27,10 +27,12 @@ swaps the roll for the music in traditional notation, on a paper background,
 lighting each note as it sounds and scrolling with the playhead; Verovio
 draws it, downloaded only when the button is first pressed. **2026-10-24:**
 chord symbols show in a row over the roll, written with ♭ and ♯, and a button
-adds a bass line that holds each chord's bass note; the notation view opens
+adds a bass line that holds each chord's bass note, from C2 to B2; the notation view opens
 at a smaller size and has its own zoom. Notes are named as the file spells
 them (B♭4, not A#4), and every text color on the roll meets WCAG AA contrast.
-Nothing is published to npm yet.
+Held sampled notes now sustain past the end of their recordings without a
+click, on loop points Spool measures itself, and the notation view scrolls
+smoothly with the playhead. Nothing is published to npm yet.
 
 ## Try it
 
@@ -60,7 +62,10 @@ npm run build:demo   # static site in dist-demo/
 The build first downloads the sampled instruments (about 45 MB, once), with
 loop points that let a held note sustain past its three-second recording, into
 `demo/public/sounds/`, which git ignores, so the hosted demo plays them from
-its own address (`npm run sounds` does only that step).
+its own address (`npm run sounds` does only that step). The loop points are
+measured from the recordings and kept in `demo/loops/`; after changing the
+recordings' commit in `demo/sounds.json`, measure them again with
+`npm run loops`, which needs [ffmpeg](https://ffmpeg.org).
 
 ## Share a file, or put it in a web page
 
@@ -110,7 +115,7 @@ import { MeiPianoRoll } from 'mei-piano-roll'
 | `header` | Show the title line above the full player; default `true` |
 | `notation` | Offer the Notation button, which shows the file in traditional notation, drawn by [Verovio](https://www.verovio.org) (LGPL-3.0, about 2.4 MB, downloaded the first time a listener presses it); default `true` |
 | `view` | The view the player opens in: `"roll"` (default) or `"notation"` |
-| `sound` | Starting sound for every part, by id (see `SOUNDS`); default each part's nearest sound to the instrument the file names, else the square lead |
+| `sound` | Starting sound for every part, by id (see `SOUNDS`); default each part's nearest sound to the instrument the file names, else the saw lead |
 | `partSounds` | Starting sound for each part, by id, in score order; takes precedence over `sound` |
 | `samplesUrl` | Where the sampled instruments are hosted: a folder of FluidR3 `<instrument>-mp3.js` files, and optionally `<instrument>-loop.json` loop points so held notes sustain, ending in `/`; default the volunteer-run site smplr uses (no loop points) |
 | `onPartSoundsChange` | Called with every part's sound whenever the listener changes one, so a page can keep the choice |

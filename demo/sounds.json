@@ -2,12 +2,6 @@
   "repo": "gleitz/midi-js-soundfonts",
   "commit": "044fab8e1456bfafc5776e86dfd6bb8697149aef",
   "loops": {
-    "repo": "goldst/midi-js-soundfonts",
-    "commit": "e09b7603fd30ebbc941fe864742d4f8898decf41",
-    "names": {
-      "choir_aahs": "ahh_choir",
-      "string_ensemble_1": "strings"
-    },
-    "shortest": 4410
+    "version": 1
   }
 }
