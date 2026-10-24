@@ -28,7 +28,9 @@ lighting each note as it sounds and scrolling with the playhead; Verovio
 draws it, downloaded only when the button is first pressed. **2026-10-24:**
 chord symbols show in a row over the roll, written with ♭ and ♯, and a button
 adds a bass line that holds each chord's bass note; the notation view opens
-at a smaller size and has its own zoom. Nothing is published to npm yet.
+at a smaller size and has its own zoom. Notes are named as the file spells
+them (B♭4, not A#4), and every text color on the roll meets WCAG AA contrast.
+Nothing is published to npm yet.
 
 ## Try it
 

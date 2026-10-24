@@ -1,5 +1,6 @@
 import type { MeiBar, MeiChord, MeiNote, MeiPart, MeiScore, MeiWarning } from './types'
 import { prettyChord } from './chords'
+import { spelledName } from './spelling'
 
 /* ===========================================================================
  * The native reader: a small MEI reader with no dependencies.
@@ -94,7 +95,8 @@ function keysigAlter(keysig: string | null, pname: string): number {
   return 0
 }
 
-function noteToMidi(noteEl: Element, keysig: string | null): number | null {
+// The pitch it sounds, and its name as the file spells it.
+function notePitch(noteEl: Element, keysig: string | null): { midi: number; name: string } | null {
   const pname = (noteEl.getAttribute('pname') || '').toLowerCase()
   const oct = parseInt(noteEl.getAttribute('oct') || '', 10)
   if (!(pname in STEP) || isNaN(oct)) return null
@@ -110,9 +112,10 @@ function noteToMidi(noteEl: Element, keysig: string | null): number | null {
     }
   }
   if (alter === null) alter = keysigAlter(keysig, pname)
-  return (oct + 1) * 12 + STEP[pname] + alter
+  return { midi: (oct + 1) * 12 + STEP[pname] + alter, name: spelledName(pname, alter, oct) }
 }
 
+/** A pitch's name with sharps for the black keys ("C#4"): for the keyboard, where no file spells it. */
 export function midiName(midi: number): string {
   return NOTE_NAMES[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1)
 }
@@ -183,13 +186,13 @@ function recordOnset(el: Element, t: number, env: LayerEnv): void {
 
 // A chord's tie applies to every note in it that has none of its own.
 function pushNote(n: Element, start: number, beats: number, env: LayerEnv, chordTie: string | null = null, tieStart = true): MeiNote | null {
-  const midi = noteToMidi(n, env.keysig)
-  if (midi === null) {
+  const pitch = notePitch(n, env.keysig)
+  if (pitch === null) {
     env.warn.add('no-pitch', 'Notes without a pitch are left out.')
     return null
   }
   const id = n.getAttribute('xml:id')
-  const note: MeiNote = { midi, start, dur: beats, name: midiName(midi), part: env.part, ids: id ? [id] : [] }
+  const note: MeiNote = { midi: pitch.midi, start, dur: beats, name: pitch.name, part: env.part, ids: id ? [id] : [] }
   env.notes.push(note)
   if (id && !env.ties.byId.has(id)) env.ties.byId.set(id, note)
   // MEI's tie attribute: i starts a tie, m continues one, t ends it.

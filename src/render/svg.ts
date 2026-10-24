@@ -1,6 +1,6 @@
 import type { MeiScore } from '../mei/types'
 import { midiName, isBlackKey } from '../mei/parseNative'
-import { resolveTheme, shade, type RollTheme, type ThemeName } from '../roll/themes'
+import { resolveTheme, shade, inkOn, type RollTheme, type ThemeName } from '../roll/themes'
 import { partColors } from '../roll/noteColors'
 import { layoutLanes } from '../roll/lanes'
 
@@ -76,7 +76,7 @@ export function rollToSvg(score: MeiScore, options: RollImageOptions = {}): stri
   // sounding when the stretch begins included.
   const allChords = (o.chordSymbols ? score.chords : []).filter((c, i, all) => i === 0 || c.start > all[i - 1].start + 1e-6)
   const chords = allChords.filter((c, i) => c.start < endBeat - 1e-6 && (allChords[i + 1]?.start ?? Infinity) > startBeat + 1e-6)
-  const chordH = chords.length ? 20 : 0
+  const chordH = chords.length ? 24 : 0
   const top = rulerH + chordH
   const lanes = layoutLanes(notes, { separate: o.separateParts, top, height: o.height - top, pitchPadding: o.pitchPadding })
   const labelLanes = lanes.length > 1
@@ -127,7 +127,7 @@ export function rollToSvg(score: MeiScore, options: RollImageOptions = {}): stri
       const opacity = faded.has(n.part) ? ' opacity="0.3"' : ''
       out.push(`<rect x="${r2(nx)}" y="${r2(ny)}" width="${r2(nw)}" height="${r2(nh)}" rx="${r2(Math.min(3, nh / 2))}" fill="${color}" stroke="${shade(color, -0.35)}" stroke-width="1"${opacity}/>`)
       if (o.noteLabels && nw > 24 && rowH > 12) {
-        out.push(`<text x="${r2(nx + 4)}" y="${r2(ny + nh / 2)}" dominant-baseline="central" ${font} font-size="${r2(fontSize)}" fill="${theme.noteText}"${opacity}>${n.name}</text>`)
+        out.push(`<text x="${r2(nx + 4)}" y="${r2(ny + nh / 2)}" dominant-baseline="central" ${font} font-size="${r2(fontSize)}" fill="${inkOn(color, theme.noteText)}"${opacity}>${n.name}</text>`)
       }
     }
 
@@ -165,7 +165,7 @@ export function rollToSvg(score: MeiScore, options: RollImageOptions = {}): stri
       const left = Math.max(x(c.start), keyW)
       const right = Math.min(x(chords[i + 1]?.start ?? endBeat), o.width)
       out.push(`<clipPath id="chord-${i}"><rect x="${r2(left)}" y="${rulerH}" width="${r2(Math.max(0, right - left - 2))}" height="${chordH}"/></clipPath>`)
-      out.push(`<text x="${r2(left + 4)}" y="${rulerH + chordH / 2}" dominant-baseline="central" clip-path="url(#chord-${i})" ${font} font-size="12" font-weight="600" fill="${theme.text}">${esc(c.label)}</text>`)
+      out.push(`<text x="${r2(left + 4)}" y="${rulerH + chordH / 2}" dominant-baseline="central" clip-path="url(#chord-${i})" ${font} font-size="13" font-weight="700" fill="${theme.textStrong ?? theme.text}">${esc(c.label)}</text>`)
     })
   }
 

@@ -348,7 +348,7 @@ const CSS = `
 .studio {
   ${SITE_TOKENS}
   min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr);
-  background: #0d0e12; color: var(--text); font: 14px/1.45 'Instrument Sans', system-ui, sans-serif;
+  background: #0a0b0d; color: var(--text); font: 14px/1.45 'Instrument Sans', system-ui, sans-serif;
 }
 .studio-drop { outline: 2px dashed var(--accent); outline-offset: -6px; }
 .studio-side { display: flex; flex-direction: column; gap: 14px; padding: 24px 20px; background: var(--surface); border-right: 1px solid var(--border); }

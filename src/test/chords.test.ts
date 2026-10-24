@@ -128,15 +128,20 @@ describe('withBassLine', () => {
     expect(s.parts.map((p) => p.label)).toEqual(['Staff 1', BASS_LABEL])
     expect(s.parts[1].generated).toBe(true)
     const bass = s.notes.filter((n) => n.part === 1)
-    // E♭ (D♯2, the top of the range) for two beats, G1 (the slash's G) for two, a rest under N.C., then G1 to the end.
+    // E♭2 (the top of the range, spelled as the symbol spells it) for two beats, G1 (the slash's G) for two, a rest under N.C., then G1 to the end.
     expect(bass.map((n) => [n.name, n.start, n.dur])).toEqual([
-      ['D#2', 0, 2],
+      ['E♭2', 0, 2],
       ['G1', 2, 2],
       ['G1', 6, 2],
     ])
     expect(bass.every((n) => n.midi >= 28 && n.midi <= 39)).toBe(true)
     expect(bass[0].ids).toEqual(['h1'])
     expect(s.warnings).toEqual([])
+  })
+
+  it('spells a bass note as its symbol does, with the octave of its letter', () => {
+    const s = withBassLine(parseNative(mei(bar(1, quarters('a'), '<harm startid="#a1">F#</harm><harm startid="#a2">Gb</harm><harm startid="#a3">Cb</harm>'))))
+    expect(s.notes.filter((n) => n.part === 1).map((n) => [n.name, n.midi])).toEqual([['F♯1', 30], ['G♭1', 30], ['C♭2', 35]])
   })
 
   it('leaves the file\'s own parts as they are', () => {
