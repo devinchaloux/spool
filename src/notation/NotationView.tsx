@@ -38,6 +38,8 @@ export interface NotationViewProps {
 // unless the listener zooms in.
 const MIN_SHRINK = 0.5;
 const PAD = 8;
+// How far toward the playhead the view moves each frame while it plays.
+const FOLLOW = 0.25;
 // The paper theme's darkest tone, for staves, notes and text.
 const INK = "#1d1f26";
 
@@ -109,19 +111,64 @@ export default function NotationView(props: NotationViewProps) {
     for (const c of score.chords) if (c.id && !startOf.has(c.id)) startOf.set(c.id, c.start);
     const sorted = [...score.notes].sort((a, b) => a.start - b.start);
 
-    // Where each note sits along the line, measured once.
-    const xs = new Map<Element, number>();
-    const xOf = (el: Element) => {
-      let x = xs.get(el);
-      if (x === undefined) {
-        x = el.getBoundingClientRect().left - box.getBoundingClientRect().left + box.scrollLeft;
-        xs.set(el, x);
+    // ── Where the playhead is along the line ──
+    // Each onset's place, measured once: the leftmost note drawn there. Between
+    // two onsets the playhead moves at an even pace, so the view glides
+    // through a bar instead of jumping from note to note. An onset drawn left
+    // of the one before (music Verovio lays out in another order) is skipped,
+    // so the view never runs backwards.
+    const boxLeft = box.getBoundingClientRect().left - box.scrollLeft;
+    const firstX = new Map<number, number>();
+    for (const n of sorted) {
+      for (const id of n.ids ?? []) {
+        const g = drawn.get(id);
+        if (!g) continue;
+        const x = g.getBoundingClientRect().left - boxLeft;
+        firstX.set(n.start, Math.min(x, firstX.get(n.start) ?? Infinity));
       }
-      return x;
+    }
+    const anchors: { beat: number; x: number }[] = [];
+    for (const [beat, x] of [...firstX].sort((a, b) => a[0] - b[0])) {
+      if (!anchors.length || x > anchors[anchors.length - 1].x) anchors.push({ beat, x });
+    }
+    const xAt = (beat: number): number | null => {
+      if (!anchors.length) return null;
+      if (beat <= anchors[0].beat) return anchors[0].x;
+      let lo = 0, hi = anchors.length - 1;
+      if (beat >= anchors[hi].beat) return anchors[hi].x;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (anchors[mid].beat <= beat) lo = mid;
+        else hi = mid;
+      }
+      const a = anchors[lo], b = anchors[hi];
+      return a.x + ((beat - a.beat) / (b.beat - a.beat)) * (b.x - a.x);
+    };
+
+    // ── Moving the view ──
+    // The browser scrolls in whole pixels, which at a slow tempo moves the
+    // music a pixel every few frames, a visible judder. So the view keeps its
+    // own position, scrolls to the whole pixel below it, and shifts the music
+    // the rest of the way with a transform. Scrolling by hand clears the shift.
+    let pos = box.scrollLeft;
+    let setByUs = -1;
+    let manualAt = 0;
+    const moveTo = (x: number) => {
+      pos = Math.max(0, Math.min(x, box.scrollWidth - box.clientWidth));
+      const whole = Math.floor(pos);
+      setByUs = whole;
+      box.scrollLeft = whole;
+      svg.style.transform = pos > whole ? `translateX(${(whole - pos).toFixed(2)}px)` : "";
+    };
+    const onScroll = () => {
+      if (box.scrollLeft === setByUs) return;
+      // Moved by hand (wheel, drag or scrollbar): follow it, and pause following.
+      pos = box.scrollLeft;
+      svg.style.transform = "";
+      manualAt = performance.now();
     };
 
     let lit = new Map<Element, string>();
-    let manualAt = 0;
     const frame = (beat: number, playing: boolean) => {
       const next = new Map<Element, string>();
       for (const n of sorted) {
@@ -139,14 +186,19 @@ export default function NotationView(props: NotationViewProps) {
         g.classList.add("mpr-sounding");
       }
       lit = next;
-      // Follow: keep the sounding notes about 38% across, as the roll does,
-      // but not for a moment after the listener has moved the view by hand.
-      if (!next.size || performance.now() - manualAt < 1500) return;
-      const x = Math.min(...[...next.keys()].map(xOf));
-      const target = Math.max(0, x - box.clientWidth * 0.38);
-      const visible = x >= box.scrollLeft && x <= box.scrollLeft + box.clientWidth;
-      if (playing) box.scrollLeft += (target - box.scrollLeft) * 0.22;
-      else if (!visible) box.scrollLeft = target;
+      // Follow: keep the playhead about 38% across, as the roll does, but not
+      // for a moment after the listener has moved the view by hand.
+      const x = xAt(beat);
+      if (x === null || performance.now() - manualAt < 1500) return;
+      const target = x - box.clientWidth * 0.38;
+      if (playing) {
+        // Eased a little toward the playhead: the target already moves
+        // continuously, and the easing evens out the steps that remain (notes
+        // aren't evenly spaced, and the audio clock advances in small chunks)
+        // while trailing it by only a few pixels. After a jump (a seek, or the
+        // view moved by hand) the same easing catches up without a snap.
+        moveTo(pos + (target - pos) * FOLLOW);
+      } else if (x < pos || x > pos + box.clientWidth) moveTo(target);
     };
     props.frameRef.current = frame;
 
@@ -186,11 +238,13 @@ export default function NotationView(props: NotationViewProps) {
       const start = g ? startOf.get(g.id) : undefined;
       if (start !== undefined) onSeekRef.current(start);
     };
+    box.addEventListener("scroll", onScroll);
     box.addEventListener("wheel", onWheel, { passive: false });
     box.addEventListener("pointerdown", onPointerDown);
     box.addEventListener("pointermove", onPointerMove);
     box.addEventListener("pointerup", onPointerUp);
     return () => {
+      box.removeEventListener("scroll", onScroll);
       box.removeEventListener("wheel", onWheel);
       box.removeEventListener("pointerdown", onPointerDown);
       box.removeEventListener("pointermove", onPointerMove);

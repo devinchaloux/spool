@@ -60,7 +60,7 @@ export interface MeiPianoRollProps {
   theme?: ThemeName | RollTheme;
   /**
    * Starting sound for every part, by id (see SOUNDS). Default: each part's
-   * nearest sound to the instrument the file names, else the square lead.
+   * nearest sound to the instrument the file names, else the saw lead.
    */
   sound?: string;
   /**

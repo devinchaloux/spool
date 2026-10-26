@@ -21,6 +21,7 @@
     "build": "tsc && vite build && tsc -p tsconfig.build.json",
     "build:demo": "node scripts/fetch-sounds.mjs && vite build --config vite.demo.config.ts",
     "sounds": "node scripts/fetch-sounds.mjs",
+    "loops": "node scripts/make-loops.mjs",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "test": "vitest",
     "test:run": "vitest run",

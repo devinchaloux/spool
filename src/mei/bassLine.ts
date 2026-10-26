@@ -7,14 +7,14 @@ import { spelledName } from './spelling'
  *
  * Not in the file: Spool writes it, on request, as one more part. Each chord's
  * bass note (the note after a slash, else the root) is held until the next
- * symbol, in a bass guitar's bottom octave, E1 to D♯2. The choices are the
+ * symbol, in the octave from C2 to B2. The choices are the
  * maintainer's (docs/decisions.md, "chord symbols, and a bass line from them").
  * ======================================================================== */
 
 const STEP: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }
 
-/** The bass line's lowest note, E1; it spans the octave up to D♯2 (MIDI 28–39). */
-export const BASS_LOW = 28
+/** The bass line's lowest note, C2; it spans the octave up to B2 (MIDI 36–47). */
+export const BASS_LOW = 36
 
 /** The name the bass line's part goes by. */
 export const BASS_LABEL = 'Bass from chords'
@@ -48,9 +48,8 @@ export function withBassLine(score: MeiScore): MeiScore {
     notes.push({ midi, start: chord.start, dur: end - chord.start, name: spelledName(bass.letter, bass.alter, octave), part, ids: chord.id ? [chord.id] : [] })
   })
   if (!notes.length) return score
-  // General MIDI 38, Synth Bass 1: a sampled bass that plays at the written
-  // pitch. The synth basses sound an octave lower, too low for these notes.
-  const bass: MeiPart = { label: BASS_LABEL, staves: [], midiProgram: 38, generated: true }
+  // It names no instrument, so it starts on the default sound, as the maintainer asked.
+  const bass: MeiPart = { label: BASS_LABEL, staves: [], generated: true }
   return {
     ...score,
     parts: [...score.parts, bass],

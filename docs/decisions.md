@@ -144,6 +144,11 @@ encoding slip than a pickup.
 electronic sounds come first and cost nothing; real instruments are there when
 a piece needs them, and a page pays for them only when someone listens.
 
+**Note (2026-10-24).** The default is now the saw lead, the maintainer's
+choice ("default to the Saw lead in general even for the bass"): it is the
+sound a part starts with when the file names no instrument the picker
+matches. A part whose file names one still starts on its nearest match.
+
 **Known risk.** The recordings are fetched from a single volunteer-run GitHub
 site. Before the package is public, host a copy alongside it (smplr supports a
 custom address).
@@ -601,6 +606,10 @@ They play their recording once, about three seconds, like the piano. The
 hosted copy's folder name carries the limit, so browsers holding the old loop
 files for a year fetch the new ones.
 
+**Note (2026-10-24, later).** Superseded by "loop points measured from the
+recordings": none of goldst's loops fit these recordings, so Spool now
+measures its own, for every note of every instrument.
+
 ### 2026-10-17: Verovio draws notation; it doesn't read the timing
 
 **Choice.** Verovio is used for what it is built for: engraving the file as
@@ -648,6 +657,21 @@ sheet). It now opens at Verovio's own size, shrunk only to fit a score taller
 than the player, and the zoom buttons work in the notation view too, from 0.4
 to 3 times that size; the roll and the notation keep separate zooms. A zoom
 keeps the same music in the middle of the view.
+
+**Note (2026-10-24, scrolling).** Following the playhead was "way way way too
+choppy" (the maintainer). The view aimed at the leftmost note sounding, so
+its target leapt at each new note and stood still through rests, and it eased
+a fifth of the way there each frame, in whole pixels: measured on a 40-bar
+lead sheet, 120 of 358 frames didn't move and steps reached 10 px. Now the
+playhead's place along the line is interpolated between the notes' onsets,
+so it moves continuously; the view eases a quarter of the way toward it each
+frame, which evens out uneven note spacing and the audio clock's small jumps;
+and it scrolls to the whole pixel below its position and shifts the music the
+rest of the way with a transform, so it moves less than a pixel when it
+should. Measured the same way: every frame moves, steps stay under 3.4 px,
+and the speed varies 17% from frame to frame (97% before), in a headless
+browser whose frames themselves came 9 to 55 ms apart. Scrolling by hand
+clears the shift and pauses following for 1.5 s, as before.
 
 **Kept from it.** The comparison found gaps in the native reader: it skipped
 octave lines without a word (it now reports them), and it ignores tuplets
@@ -705,6 +729,13 @@ buzz until its loop points were dropped (see the note under "held notes
 sustain"); it now plays each recording once, about three seconds, so a chord
 held longer goes quiet before it changes.
 
+**Note (2026-10-24, register).** The bass line now sits from C2 to B2, an
+octave up: from E1 to D♯2, the maintainer found it too low (in *Scary
+Monsters and Nice Sprites* the F and Gm chords played F1 and G1; they now
+play F2 and G2). It no longer names an instrument (it named General MIDI 38,
+Synth Bass 1), so it starts on the default sound, the saw lead, as the
+maintainer asked.
+
 **Why.** The maintainer's lead sheets carry chord symbols, and a producer
 reads a lead sheet as harmony and a bass line as much as a melody
 (2026-10-24). On the 617 sample files the stress test changed only by the new
@@ -756,6 +787,46 @@ was text too dim, not a ground too dark; it darkened its ground.
 **Why.** The maintainer asked for chord symbols that stand out and pointed to
 the site's accessibility work (2026-10-24); the same faint grey ran through
 the roll.
+
+### 2026-10-24: loop points measured from the recordings
+
+**Choice.** Spool measures its own loop points from the recordings it plays
+(`scripts/make-loops.mjs`, `npm run loops`), for every note of all eighteen
+sampled instruments, and keeps them in `demo/loops/`; the sounds build copies
+them beside the recordings and fails if one is missing. For each note it
+looks near the end of the recording for a stretch of 0.3 to 1.2 s whose two
+ends are rising zero crossings a whole number of the note's cycles apart, and
+picks the pair whose audio matches best across the seam, in shape and in
+level. The hosted folder is named after the recordings' commit and the loops'
+version (`loops.version` in `demo/sounds.json`), which the script raises when
+any loop changes, so browsers fetch new ones.
+
+**Why.** A note held past its recording (about 3.14 s) clicked: the maintainer
+heard "a clipping sound if it needs to extend". Every recording is cut off at
+3.14 s, with sustained instruments still at 20 to 40% of their peak, so an
+instrument with no loop stopped dead; and goldst's loops, measured on the
+soundfont's raw samples, don't fit recordings rendered at each pitch: across
+the seam the audio was unrelated (a mismatch of 1 to 2, where 0 is seamless),
+and some ran past the recording's end. With the new loops the median mismatch
+is 0.01 to 0.1 for solo instruments, and 0.2 to 0.6 for ensembles (brass
+section, strings, choir), whose detuned voices never quite repeat, and the
+piano, quiet by then. Rendered offline through smplr, 6-second notes now hold
+their pitch past 3.2 s, and the largest jump in slope after it is 1.1 to 2.9
+times the usual one, against 4.5 to 25 times with goldst's loops; the synth
+bass, clarinet and piano, which had none, no longer stop.
+
+**Rejected.**
+- *goldst's loop points,* filtered or not (see the notes under "held notes
+  sustain").
+- *Measuring loops in the listener's browser* as the recordings load: no
+  tool needed, but every page would decode each instrument twice.
+- *A fade at the recording's end:* no click, but the note stops early.
+
+**Needs ffmpeg, only to measure them again.** The script decodes the MP3s
+with ffmpeg, which the maintainer runs locally, and only when the recordings'
+commit changes. The build reads the measured loops from the repository and
+needs nothing new. The loop points are numbers Spool measured, committed with
+the code; the recordings stay out of the history.
 
 ## Open questions
 

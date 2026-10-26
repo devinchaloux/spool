@@ -65,8 +65,12 @@ export const SOUNDS: Sound[] = [
   sampled('synth-bass', 'Synth bass (sampled)', 'synth_bass_1'),
 ]
 
-/** The prototype's sound, kept as the default: a square-wave lead (General MIDI 81). */
-export const DEFAULT_SOUND = 'square-lead'
+/**
+ * The sound a part starts with when the file names no instrument the picker
+ * matches: the saw lead, the maintainer's choice (2026-10-24), the bass line
+ * included.
+ */
+export const DEFAULT_SOUND = 'saw-lead'
 
 export function findSound(id: string | undefined): Sound {
   return SOUNDS.find((s) => s.id === id) ?? SOUNDS.find((s) => s.id === DEFAULT_SOUND)!

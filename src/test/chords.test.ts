@@ -3,6 +3,7 @@ import { parseNative } from '../mei/parseNative'
 import { chordBass, prettyChord, withPrettyChords } from '../mei/chords'
 import { withBassLine, hasBassLine, BASS_LABEL } from '../mei/bassLine'
 import { rollToSvg } from '../render/svg'
+import { soundForPart } from '../audio/instruments'
 
 // ── Helpers ──
 // Short MEI written for these tests: chord symbols as notation software
@@ -123,25 +124,27 @@ describe('withBassLine', () => {
     bar(2, quarters('b'), '<harm startid="#b1">N.C.</harm><harm startid="#b3">G</harm>'),
   )
 
-  it('holds each chord\'s bass note until the next symbol, from E1 to D♯2, as one more part', () => {
+  it('holds each chord\'s bass note until the next symbol, from C2 to B2, as one more part', () => {
     const s = withBassLine(parseNative(xml))
     expect(s.parts.map((p) => p.label)).toEqual(['Staff 1', BASS_LABEL])
     expect(s.parts[1].generated).toBe(true)
+    // It names no instrument, so it starts on the default sound, the saw lead.
+    expect(soundForPart(s.parts[1])).toBeNull()
     const bass = s.notes.filter((n) => n.part === 1)
-    // E♭2 (the top of the range, spelled as the symbol spells it) for two beats, G1 (the slash's G) for two, a rest under N.C., then G1 to the end.
+    // E♭2, spelled as the symbol spells it, for two beats, G2 (the slash's G) for two, a rest under N.C., then G2 to the end.
     expect(bass.map((n) => [n.name, n.start, n.dur])).toEqual([
       ['E♭2', 0, 2],
-      ['G1', 2, 2],
-      ['G1', 6, 2],
+      ['G2', 2, 2],
+      ['G2', 6, 2],
     ])
-    expect(bass.every((n) => n.midi >= 28 && n.midi <= 39)).toBe(true)
+    expect(bass.every((n) => n.midi >= 36 && n.midi <= 47)).toBe(true)
     expect(bass[0].ids).toEqual(['h1'])
     expect(s.warnings).toEqual([])
   })
 
   it('spells a bass note as its symbol does, with the octave of its letter', () => {
     const s = withBassLine(parseNative(mei(bar(1, quarters('a'), '<harm startid="#a1">F#</harm><harm startid="#a2">Gb</harm><harm startid="#a3">Cb</harm>'))))
-    expect(s.notes.filter((n) => n.part === 1).map((n) => [n.name, n.midi])).toEqual([['F♯1', 30], ['G♭1', 30], ['C♭2', 35]])
+    expect(s.notes.filter((n) => n.part === 1).map((n) => [n.name, n.midi])).toEqual([['F♯2', 42], ['G♭2', 42], ['C♭3', 47]])
   })
 
   it('leaves the file\'s own parts as they are', () => {
