@@ -37,7 +37,6 @@ export interface TransportOptions {
 }
 
 export class Transport {
-  loop = false
   /** Called when playback reaches the end without looping. */
   onEnd: (() => void) | null = null
 
@@ -55,6 +54,10 @@ export class Transport {
   // (re)started from: notes ending before it are skipped.
   private next = 0
   private from = 0
+  // When looping, the next pass is scheduled before this one ends, so `anchor`
+  // moves ahead of what is heard; `wrapped` marks that until the seam passes.
+  private wrapped = false
+  private looping = false
   private timer: ReturnType<typeof setInterval> | null = null
 
   constructor(private out: TransportOutput, options: TransportOptions = {}) {
@@ -71,6 +74,22 @@ export class Transport {
     return this.bpm
   }
 
+  get loop(): boolean {
+    return this.looping
+  }
+
+  /** Turning loop off before a pass already scheduled is heard ends at the seam. */
+  set loop(on: boolean) {
+    this.looping = on
+    if (!on && this.pendingWrap()) {
+      // Notes of the next pass already handed over (at most `lookahead` of them)
+      // may still sound briefly; the halt at the seam stops what it can.
+      this.anchor -= this.total * this.spb()
+      this.next = this.notes.length
+      this.wrapped = false
+    }
+  }
+
   setScore(notes: TransportNote[], totalBeats: number): void {
     this.pause()
     this.notes = [...notes].sort((a, b) => a.start - b.start)
@@ -81,7 +100,9 @@ export class Transport {
   /** The playhead, in beats. */
   position(): number {
     if (!this.playing) return this.held
-    return Math.max(0, (this.out.now() - this.anchor) / this.spb())
+    const spb = this.spb()
+    const anchor = this.pendingWrap() ? this.anchor - this.total * spb : this.anchor
+    return Math.min(Math.max(0, (this.out.now() - anchor) / spb), this.total)
   }
 
   play(): void {
@@ -136,8 +157,14 @@ export class Transport {
     return 60 / this.bpm
   }
 
+  /** True while the next pass is scheduled but the current one is still heard. */
+  private pendingWrap(): boolean {
+    return this.wrapped && this.out.now() < this.anchor
+  }
+
   private startAt(beat: number): void {
     this.from = beat
+    this.wrapped = false
     this.anchor = this.out.now() + this.startDelay - beat * this.spb()
     // Notes are sorted by start; begin at the first one not over before `beat`.
     this.next = 0
@@ -157,24 +184,34 @@ export class Transport {
     if (!this.playing) return
     const spb = this.spb()
     const horizon = this.out.now() + this.lookahead
-    while (this.next < this.notes.length) {
-      const n = this.notes[this.next]
-      const when = this.anchor + n.start * spb
-      if (when > horizon) break
-      // A note already over by the restart point is skipped; one still sounding
-      // there plays its remainder (the engine trims notes that start in the past).
-      if (n.start + n.dur > this.from + 1e-6) this.out.play(n.midi, when, n.dur * spb, n.part ?? 0)
-      this.next++
-    }
-    if (this.position() >= this.total) {
-      if (this.loop && this.total > 0) {
-        this.halt()
-        this.startAt(0)
-      } else {
-        this.halt()
-        this.held = this.total
-        this.onEnd?.()
+    for (;;) {
+      if (this.next < this.notes.length) {
+        const n = this.notes[this.next]
+        // A note starting at or after the end is never reached.
+        if (n.start >= this.total) { this.next = this.notes.length; continue }
+        const when = this.anchor + n.start * spb
+        if (when > horizon) break
+        // A note already over by the restart point is skipped; one still sounding
+        // there plays its remainder (the engine trims notes that start in the past).
+        if (n.start + n.dur > this.from + 1e-6) this.out.play(n.midi, when, n.dur * spb, n.part ?? 0)
+        this.next++
+        continue
       }
+      // Looping: schedule the top of the next pass right after the end of this
+      // one, inside the same look-ahead, so there is no gap and nothing is cut
+      // off at the seam. One pass at a time, so a very short piece can't spin.
+      if (!this.looping || this.total <= 0 || this.pendingWrap()) break
+      const seam = this.anchor + this.total * spb
+      if (seam > horizon) break
+      this.anchor = seam
+      this.from = 0
+      this.next = 0
+      this.wrapped = true
+    }
+    if (!this.looping && this.position() >= this.total) {
+      this.halt()
+      this.held = this.total
+      this.onEnd?.()
     }
   }
 }

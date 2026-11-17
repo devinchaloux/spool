@@ -110,6 +110,49 @@ describe('Transport', () => {
     expect(t.playing).toBe(true)
     expect(played.filter((p) => p.midi === 60).length).toBe(2)
   })
+
+  it('loops without a gap: the next pass is scheduled before the end, nothing is cut', () => {
+    const { t, played, advance, stops } = rig(scale, 8)
+    t.loop = true
+    t.play()
+    advance(3.95)
+    // Within the look-ahead of the end, the top of the next pass is already handed over.
+    const starts = played.filter((p) => p.midi === 60).map((p) => p.when)
+    expect(starts).toHaveLength(2)
+    expect(starts[1] - starts[0]).toBeCloseTo(4, 9)
+    // Still hearing the first pass, so the playhead hasn't jumped back yet.
+    expect(t.position()).toBeGreaterThan(7.8)
+    advance(0.2)
+    expect(t.position()).toBeLessThan(0.5)
+    expect(stops()).toBe(0)
+  })
+
+  it('ends at the seam when loop is turned off after the next pass was scheduled', () => {
+    const { t, advance } = rig(scale, 8)
+    let ended = false
+    t.onEnd = () => { ended = true }
+    t.loop = true
+    t.play()
+    advance(3.95)
+    t.loop = false
+    expect(t.position()).toBeGreaterThan(7.8)
+    advance(0.2)
+    expect(ended).toBe(true)
+    expect(t.position()).toBe(8)
+  })
+
+  it('keeps the loop seamless after a seek or tempo change', () => {
+    const { t, played, advance } = rig(scale, 8)
+    t.loop = true
+    t.play()
+    t.seek(6)
+    t.setTempo(60)
+    const before = played.length
+    advance(2.1)
+    const tops = played.slice(before).filter((p) => p.midi === 60)
+    expect(tops).toHaveLength(1)
+    expect(t.playing).toBe(true)
+  })
 })
 
 describe('Transport: parts', () => {

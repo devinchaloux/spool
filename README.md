@@ -34,7 +34,8 @@ Held sampled notes now sustain past the end of their recordings without a
 click, on loop points Spool measures itself, and the notation view scrolls
 smoothly with the playhead. Nothing is published to npm yet. **2026-11-06:**
 each GitHub release carries the built package, so a page can install it by
-its link (see "Install it in a page").
+its link (see "Install it in a page"). **2026-11-07:** looping plays
+straight from the end back into the start, with no break.
 
 ## Install it in a page
 

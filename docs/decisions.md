@@ -951,6 +951,22 @@ and typescript-eslint's (8.72) still ask for minimatch 10.
 Lint and the tests pass with the override. Remove it once ESLint's own range
 reaches 11.
 
+### 2026-11-07: looping has no gap at the seam
+
+**Choice.** With loop on, the transport schedules the top of the next pass
+inside the same look-ahead as the end of this one, timed to start exactly
+one piece-length after the last pass began. It never halts at the seam, so
+the last notes ring out as written while the first ones start. Turning loop
+off after the next pass is already scheduled ends playback at the seam.
+
+**Rejected.** *Halting at the end and starting again from the top,* as
+before. That waited for the timer tick after the end, added the 50 ms
+start delay, and silenced the last notes, which together gave an audible
+break.
+
+**Why.** A loop is for hearing a passage over and over; a break at the seam
+breaks the pulse.
+
 ## Open questions
 
 | Question | Options |
