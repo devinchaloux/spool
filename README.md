@@ -196,3 +196,4 @@ takes about two minutes. Its job is to show what breaks, not to pass; see
 - [`CLAUDE.md`](CLAUDE.md): rules for working on this repo with Claude Code
 - [`docs/decisions.md`](docs/decisions.md): design decisions and open questions
 - [`docs/fixtures.md`](docs/fixtures.md): where the test files come from
+- [`docs/interface-text.md`](docs/interface-text.md): how text in the player and the demo is written
