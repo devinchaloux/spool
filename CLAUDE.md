@@ -4,21 +4,14 @@ Instructions for Claude Code in this repository. They apply to anyone working
 on Spool with Claude; the maintainer's own session instructions load
 from a private file through the import at the end.
 
-**Current state (2026-10-24):** the native reader and the player work,
-several instruments included, with a notation view drawn by Verovio, chord
-symbols and a bass line made from them, unit
-tests, a demo page (`npm run dev`) and a stress test over the MEI project's
-sample files (`npm run stress`). Verovio draws notation only; the native
-reader times everything (`docs/decisions.md`).
-`docs/decisions.md` lists what is decided and what is open.
-
 ---
 
 ## What this project is
 
 **Spool** is a piano roll player for MEI (Music Encoding Initiative) files,
 packaged for npm as `mei-piano-roll`. It loads an MEI document, shows its
-notes as a piano roll, and plays them.
+notes as a piano roll, and plays them. What works today: the README's
+"Status" section.
 
 The core design bets:
 - **MEI is the source of truth.** The roll is derived from the encoding; the
@@ -42,26 +35,23 @@ code.
 
 ## Architecture in brief
 
-- React + Vite + TypeScript, built as a library (`src/index.ts`). React comes
-  from the embedding page, never from the bundle. Vitest for tests, ESLint for
-  lint.
+React + Vite + TypeScript, built as a library (`src/index.ts`). React comes
+from the embedding page, never from the bundle. Vitest for tests, ESLint for
+lint. The README's "Layout" lists every folder; the rules that bind:
+
 - **`src/mei/`** reads MEI into `MeiScore` (`src/mei/types.ts`): notes in
   quarter-note beats, plus **warnings** for anything the reader drops,
-  simplifies or guesses. Every reader returns this one shape. No UI here, and it
-  is unit-tested in `src/test/`.
+  simplifies or guesses. Every reader returns this one shape. No UI here.
+  A new gap the reader knows about gets a warning, not a silent skip.
 - **`src/roll/MeiPianoRoll.tsx`** only draws (one canvas) and plays what a
   reader returns, and lists the warnings under the roll.
-- **`src/notation/`** shows the file as notation in the roll's place: Verovio
-  engraves it, imported only when the view is opened, and the player's clock
-  lights notes by xml:id. Never use Verovio's timing. Colors come from
-  `src/roll/themes.ts`.
-- **`src/audio/`** plays notes: synth sounds are data recipes in `synth.ts`;
-  sampled instruments come from `smplr`, imported only when one is chosen, so
-  pages using synths never load it.
-- **`src/render/svg.ts`** draws still images as SVG with no browser needed;
-  keep it in step with the canvas drawing when the roll's look changes.
-- A new gap the reader knows about gets a warning, not a silent skip: the
-  stress test counts them across the sample files.
+- **`src/notation/`**: Verovio engraves the notation view, imported only when
+  the view is opened. Never use Verovio's timing: the player's clock lights
+  notes by xml:id. Colors come from `src/roll/themes.ts`.
+- **`src/audio/`**: synth sounds are data recipes in `synth.ts`; sampled
+  instruments come from `smplr`, imported only when one is chosen.
+- **`src/render/svg.ts`** draws still images with no browser; keep it in step
+  with the canvas drawing when the roll's look changes.
 
 ---
 
@@ -86,19 +76,16 @@ clones.
 
 ### Checks
 
-CI (`.github/workflows/ci.yml`) runs lint, a guard against `TEMPORARY`
-markers, the tests and the build (`tsc`, then `vite build`) on every push and
-pull request. Run the same before pushing:
+CI runs lint, a guard against `TEMPORARY` markers, the tests and the build on
+every push and pull request. Run the same before pushing:
 
 ```bash
 npm run lint && npm run test:run && npm run build
 ```
 
-A comment marked `TEMPORARY` is a merge blocker; CI fails on one.
-
-`npm run stress` is not part of CI: it downloads about 113 MB and its job is
-to show what breaks. Run it after any change to a reader and compare its
-totals with the last run.
+A comment marked `TEMPORARY` is a merge blocker. `npm run stress` is not part
+of CI (it downloads about 113 MB): run it after any change to a reader and
+compare its totals with the last run.
 
 ### Commit messages
 
@@ -111,48 +98,26 @@ history.
 
 ## Code style
 
-- **Match existing patterns**; don't introduce new ones without asking.
-- **Legibility over cleverness.**
-- **No `any`**: use `unknown` and narrow.
-- **Comments explain why, not what.** Good: `// MEI durations are fractions of
-  a whole note; convert to beats before scheduling`. Bad: `// get duration`.
-- **Section dividers** in longer files: `// ── Section name ──`.
+Match existing patterns, and don't introduce new ones without asking.
+Legibility over cleverness. No `any`: use `unknown` and narrow. Comments
+explain why, not what (`// MEI durations are fractions of a whole note;
+convert to beats before scheduling`, not `// get duration`). Section dividers
+in longer files: `// ── Section name ──`.
 
----
-
-## Writing interface text
-
-**American English everywhere**: code, comments, docs and the interface
-("color", "license", "behavior").
-
-Text in the player and the demo reads like brief technical documentation:
-1. Say what a control does, or what to do next, in as few words as that takes.
-2. Never explain how the code works or why it was built this way; that belongs
-   in `docs/decisions.md`.
-3. Anything more a reader might want (a reason, a limit, a reassurance) goes in
-   a tooltip, not on the screen.
-4. Inline text stays only when it prevents a mistake.
-5. One idea, one wording, everywhere it appears.
-6. Write sentences, not fragments spliced with dashes.
+**Before you write any text in the player or the demo**, read
+`docs/interface-text.md`. American English everywhere.
 
 ---
 
 ## Docs are part of the change
 
 A doc that describes something the code no longer does is worse than no doc.
-Docs land in the same commit as the change that invalidates them:
-
-- every design decision gets an entry in `docs/decisions.md` with its reason;
-- a behavior change updates the README's "Status" section;
-- a new source of test files updates `docs/fixtures.md`.
-
-Before committing, grep for what the change invalidates:
-
-```bash
-grep -rn "<the identifier>" docs/ README.md CLAUDE.md
-```
-
-A historical record stays; a live instruction that is now wrong gets rewritten.
+Docs land in the same commit as the change that invalidates them: a design
+decision gets an entry in `docs/decisions.md` with its reason, a behavior
+change updates the README's "Status", and a new source of test files updates
+`docs/fixtures.md`. Before committing, grep for what the change invalidates
+(`grep -rn "<the identifier>" docs/ README.md CLAUDE.md`). A historical record
+stays; a live instruction that is now wrong gets rewritten.
 
 ---
 

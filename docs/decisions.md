@@ -1,19 +1,76 @@
 # Decisions
 
-**Status (2026-10-24):** Spool is a public alpha that opens a file from a
-link and shares one as a link or an iframe embed, and plays the sampled
-instruments from its own copy. The native reader works, and the player has a sound
-picker, color themes, image export and several instruments in one roll, each
-with its own color and sound, and a notation view drawn by Verovio, with its
-own zoom. Tied notes sound once and grace notes play before their beat. The
-composer and artist show when the file names them. Chord symbols show over
-the roll, and can add a bass line.
-**Next action:** the native reader's tuplets written as `@tuplet` or a
-`<tupletSpan>`; annotations once their list is settled.
+**Reviewed:** not yet
 
-Each decision gets: date, the choice, the alternatives rejected, and why, so it
-isn't re-litigated later. Entries are binding until a later entry reverses
-them; don't edit an old entry, add a dated note beneath it.
+## Now
+
+Spool's binding design decisions. Each entry gives the date, the choice, the
+alternatives rejected, and why, so the decision isn't argued again later. An
+entry holds until a later one reverses it. Don't edit an old entry: add a
+dated note beneath it. The index below lists every ruling still in force, one
+line each, linked to its entry. A ruling a later entry replaced leaves the
+index and stays in the log. For what Spool does today, see the README's
+"Status" section.
+
+**Next:** the native reader should read tuplets written as `@tuplet` or as a
+`<tupletSpan>`, which it now ignores, so those bars run long. Annotations
+come once their list is settled. The two questions still open are at the end
+of this file.
+
+## Current rulings
+
+**Reading MEI**
+
+- [The native reader times every note, for the roll and the notation alike; Verovio only engraves notation.](#2026-10-17-verovio-draws-notation-it-doesnt-read-the-timing)
+- [Every reader reports what it drops, simplifies or guesses, and the player lists it under the roll.](#2026-10-07-the-reader-reports-what-it-leaves-out)
+- [The reader finds meter, key, chord lengths, short bars and `copyof` where modern files write them, and reads only `<music>`.](#2026-10-07-the-native-reader-reads-mei-where-modern-files-write-it)
+- [A tied chain is one note, drawn and sounded once.](#2026-10-08-tied-notes-sound-once-as-one-note)
+- [Grace notes play just before their beat, taking time from the note before.](#2026-10-08-grace-notes-play-just-before-the-beat)
+- [Measured tremolos play as the repeated notes they stand for; an unmeasured one plays held, with a warning.](#2026-10-08-tremolos-play-as-the-notes-they-stand-for)
+- [A part is one instrument: a staff, or a braced or named staff group.](#2026-10-08-several-instruments-in-one-roll)
+- [Tempo comes from `midi.bpm`, then the metronome mark, then 120.](#2026-10-08-more-string-sounds-and-the-metronome-mark-as-a-tempo)
+- [The composer and the artist come from the file's roles, header first.](#2026-10-08-the-composer-and-artist-as-the-file-names-them)
+- [Chord symbols show as printed, with ♭ and ♯; the file's text is never rewritten.](#2026-10-24-chord-symbols-and-a-bass-line-from-them)
+- [Note names are spelled as the file writes them (B♭4, not A#4).](#2026-10-24-note-names-as-the-file-spells-them)
+
+**Sound and playback**
+
+- [Synths built from the browser come first; sampled instruments load only when chosen. The default sound is the saw lead.](#2026-10-07-sounds-built-in-synths-first-sampled-instruments-on-demand)
+- [A part starts on the nearest sound to the instrument the file names; viola, double bass and pizzicato strings are included.](#2026-10-08-more-string-sounds-and-the-metronome-mark-as-a-tempo)
+- [A transport hands notes to the engine a tenth of a second ahead, so every control acts at once.](#2026-10-08-a-transport-that-schedules-just-ahead)
+- [Each part has its own channel, mute, solo and sound, and the level falls as parts are added.](#2026-10-08-several-instruments-in-one-roll)
+- [Held sampled notes loop on points Spool measures from its own recordings.](#2026-10-24-loop-points-measured-from-the-recordings)
+- [The bass line from chord symbols holds each chord's bass note, from C2 to B2, on request.](#2026-10-24-chord-symbols-and-a-bass-line-from-them)
+
+**The player and its look**
+
+- [Two layouts: the full player, with its controls under the roll, and the compact player for essays.](#2026-10-08-two-player-layouts-and-a-studio-page-for-the-demo)
+- [Four themes, and the note color follows the page's accent.](#2026-10-07-color-themes-and-notes-follow-the-pages-accent)
+- [Eight quick-pick note colors, each with a strength for dark and light themes.](#2026-10-08-quick-pick-note-colors)
+- [A page can name the excerpt, and the roll opens fitted to its width, from 12 to 160 px per beat.](#2026-11-06-a-page-names-the-excerpt-and-the-roll-fits-its-width)
+- [A short excerpt fits a phone, and the title wraps.](#2026-11-07-a-short-excerpt-fits-a-phone-and-the-title-wraps)
+- [Tempo is shown in the beat the meter names; inside, it stays in quarter notes.](#2026-10-10-tempo-is-shown-in-the-beat-the-meter-names)
+- [Text on the roll meets WCAG AA against the worst background it is drawn on.](#2026-10-24-text-contrast-as-the-site-holds-it)
+- [The notation view is always on paper, lit and scrolled by the same playhead, and keeps its own zoom.](#2026-10-17-verovio-draws-notation-it-doesnt-read-the-timing)
+- [Interface text says what a control does; the rest goes in a tooltip. American English throughout.](#2026-10-08-brief-interface-text-details-in-tooltips-american-english)
+
+**Images, sharing and hosting**
+
+- [Still images are SVG, drawn without a browser (reading the MEI still needs a `DOMParser`).](#2026-10-07-still-images-as-svg-made-without-a-browser)
+- [A file is shared by its address, as a link or an iframe embed; Spool stores nothing.](#2026-10-10-sharing-a-file-by-its-address-a-link-and-an-iframe-embed)
+- [The demo is hosted on Vercel, open to anyone, with a preview for every pull request.](#2026-10-08-the-demo-is-hosted-on-vercel-open-to-anyone)
+- [The hosted demo is a public alpha named Spool; the package keeps the name `mei-piano-roll`.](#2026-10-10-the-hosted-demo-is-a-public-alpha)
+- [The hosted demo plays the sampled instruments from its own copy; the library's default is still the volunteer site.](#2026-10-10-the-hosted-demo-plays-the-sampled-instruments-from-its-own-copy)
+- [The demo opens with a CRIM Project motet, the one MEI file kept in the repository.](#2026-10-10-the-demo-opens-with-a-crim-project-motet-kept-in-this-repository)
+- [The studio page links to the repository's issue form.](#2026-10-10-a-report-an-issue-link)
+
+**Packaging, tests and tools**
+
+- [A component library with a demo page, installed from a GitHub release until it is on npm.](#2026-11-06-installed-from-a-github-release-until-it-is-on-npm)
+- [Test files are fetched, never committed.](#2026-10-07-test-files-are-fetched-never-committed)
+- [The stress test gives each file its own jsdom window.](#2026-10-07-the-stress-test-gives-each-file-its-own-simulated-browser)
+- [React 18+ as a peer dependency, Vite, TypeScript 5.9, Vitest and ESLint.](#2026-10-07-the-tools-matching-the-maintainers-other-projects)
+- [The lint tools use a patched minimatch until ESLint takes up version 11.](#2026-11-07-the-lint-tools-use-a-patched-minimatch)
 
 ---
 
@@ -227,6 +284,10 @@ interface text"). The project is written in American English throughout.
 **Why.** Short text gets read; long text gets skipped, and the useful detail
 goes with it. The first version explained itself on screen (a permanent line of
 instructions under the roll, a download note in the sound menu).
+
+**Note (2026-11-17).** The rules moved from `CLAUDE.md` to
+`docs/interface-text.md`, which a contributor reads before writing text in the
+player or the demo.
 
 ### 2026-10-08: quick-pick note colors
 
