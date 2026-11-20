@@ -1,7 +1,7 @@
 {
   "name": "mei-piano-roll",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A piano roll player for MEI (Music Encoding Initiative) files.",
   "license": "MIT",
   "type": "module",
