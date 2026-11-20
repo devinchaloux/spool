@@ -188,7 +188,7 @@ function recordOnset(el: Element, t: number, env: LayerEnv): void {
 function pushNote(n: Element, start: number, beats: number, env: LayerEnv, chordTie: string | null = null, tieStart = true): MeiNote | null {
   const pitch = notePitch(n, env.keysig)
   if (pitch === null) {
-    env.warn.add('no-pitch', 'Notes without a pitch are left out.')
+    env.warn.add('no-pitch', 'The roll leaves out notes without a pitch.')
     return null
   }
   const id = n.getAttribute('xml:id')
@@ -229,7 +229,7 @@ function durSourceOf(chord: Element): Element {
 function queueGrace(el: Element, scale: number, env: LayerEnv): void {
   const source = el.localName === 'chord' ? durSourceOf(el) : el
   if (!source.getAttribute('dur')) {
-    env.warn.add('grace-no-dur', 'Grace notes without a written length are left out.')
+    env.warn.add('grace-no-dur', 'The roll leaves out grace notes without a written length.')
     return
   }
   env.layer.graces.push({ el, beats: durToBeats(source, scale, env.warn) })
@@ -242,7 +242,7 @@ function placeGraces(beat: number, env: LayerEnv): void {
   env.layer.graces = []
   const room = beat - (env.layer.lastStart ?? 0)
   if (room <= 1e-9) {
-    env.warn.add('grace-start', 'Grace notes with no time before them are left out.', graces.length)
+    env.warn.add('grace-start', 'The roll leaves out grace notes with no time before them.', graces.length)
     return
   }
   const total = graces.reduce((sum, g) => sum + g.beats, 0)
@@ -291,7 +291,7 @@ function walkLayer(node: Element, ctx: { t: number }, env: LayerEnv, scale: numb
       else if (tag === 'multiRest') ctx.t += env.measureBeats * parseInt(child.getAttribute('num') || '1', 10)
       else ctx.t += durToBeats(child, scale, env.warn)
     } else if (tag === 'keySig' || tag === 'meterSig') {
-      env.warn.add('mid-change', 'Only the opening key, meter and tempo are used.')
+      env.warn.add('mid-change', 'The roll uses only the opening key, meter, and tempo.')
     } else if (!SILENT_IN_LAYER.has(tag)) {
       env.warn.add(`skipped:${tag}`, `<${tag}> is not shown.`)
     }
@@ -390,7 +390,7 @@ function joinTies(notes: MeiNote[], ties: TieIndex, music: Document | Element, w
     if (to && to !== n) next.set(n, to)
     else lost++
   }
-  if (lost) warn.add('tie', "Some tied notes play separately: the tie's other end wasn't found.", lost)
+  if (lost) warn.add('tie', "Some tied notes play separately: the roll couldn't find the tie's other end.", lost)
   if (!next.size) return notes
 
   // Earliest first, so each chain is joined from its first note.
@@ -655,14 +655,14 @@ function keepSoundingParts(parts: MeiPart[], notes: MeiNote[]): MeiPart[] {
 
 function checkFile(doc: Document | Element, meter: OpeningMeter, warn: Warnings): void {
   if (!meter.found && allDeep(doc, 'measure').length) {
-    warn.add('no-meter', 'No meter given, so bars assume 4/4.')
+    warn.add('no-meter', 'The file gives no meter, so the roll uses 4/4.')
   }
 
   const defs = [...allDeep(doc, 'scoreDef'), ...allDeep(doc, 'staffDef')]
   const meters = new Set(defs.map((d) => d.getAttribute('meter.count') && `${d.getAttribute('meter.count')}/${d.getAttribute('meter.unit')}`).filter(Boolean))
   const tempos = new Set(allDeep(doc, 'tempo').map((t) => t.getAttribute('midi.bpm')).filter(Boolean))
   if (meters.size > 1 || tempos.size > 1) {
-    warn.add('mid-change', 'Only the opening key, meter and tempo are used.')
+    warn.add('mid-change', 'The roll uses only the opening key, meter, and tempo.')
   }
 
   const transposing = allDeep(doc, 'staffDef').filter((s) => s.getAttribute('trans.semi') && s.getAttribute('trans.semi') !== '0')
@@ -695,7 +695,7 @@ function readChords(harms: HarmInBar[], onsets: Map<string, number>, ties: TieIn
   const chords: MeiChord[] = []
   for (const { el, barStart } of harms) {
     if (firstDeep(el, 'fb')) {
-      warn.add('figured-bass', 'Figured bass is not shown.')
+      warn.add('figured-bass', 'The roll doesn’t show figured bass.')
       continue
     }
     const text = textOf(el)
@@ -865,7 +865,7 @@ export function parseNative(xmlText: string): MeiScore {
       if (meantShort) {
         measureStart += content
       } else {
-        warn.add('short-bar', 'Short bars are padded to full length.')
+        warn.add('short-bar', 'The roll pads short bars to full length.')
         measureStart += measureBeats
       }
     } else {

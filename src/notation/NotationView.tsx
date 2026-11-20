@@ -262,7 +262,7 @@ export default function NotationView(props: NotationViewProps) {
       style={{ height, background: THEMES.paper.background, color: INK, fill: INK }}
       tabIndex={0}
       onKeyDown={props.onKeyDown}
-      title="Drag or scroll to move. Click a note or chord symbol to set the playhead. Space plays; Home returns to the start."
+      title="Drag or scroll to move. Click a note or chord symbol to set the playhead. Press Space to play and Home to return to the start."
     />
   );
 }

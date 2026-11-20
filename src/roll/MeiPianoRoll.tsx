@@ -990,7 +990,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
       {parts.map((part, i) => (
         <div key={i} className={"mpr-part" + (isAudible(i) ? "" : " mpr-part-off")}>
           <span className="mpr-swatch" style={{ background: colors[i] ?? colors[0] }} />
-          <span className="mpr-part-name" title={part.generated ? "Made from the chord symbols. It isn't in the file." : part.label}>{part.label}</span>
+          <span className="mpr-part-name" title={part.generated ? "Spool built this from the chord symbols. It isn't in the file." : part.label}>{part.label}</span>
           <button className="mpr-ms" aria-pressed={muted.has(i)} onClick={() => setMuted((m) => toggleIn(m, i))} title="Mute" aria-label={`Mute ${part.label}`}>M</button>
           <button className="mpr-ms mpr-solo" aria-pressed={soloed.has(i)} onClick={() => setSoloed((m) => toggleIn(m, i))} title="Solo" aria-label={`Solo ${part.label}`}>S</button>
           {soundSelect(i)}
@@ -1017,7 +1017,7 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
           className="mpr-canvas"
           style={{ height: canvasHeight, background: theme.background, display: onRoll ? undefined : "none" }}
           tabIndex={0}
-          title="Drag or scroll to move. Click to set the playhead. Space plays; Home returns to the start."
+          title="Drag or scroll to move. Click to set the playhead. Press Space to play and Home to return to the start."
         />
         {!onRoll && ready && scoreRef.current && (
           <NotationView

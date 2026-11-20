@@ -48,7 +48,7 @@ export async function fetchMei(address: string): Promise<string> {
   } catch {
     // A network error and a host that won't let other sites read the file look
     // the same from here.
-    throw new Error("Couldn't read the file at this address. Check that it's shared publicly.")
+    throw new Error("Couldn't read the file at this address. Check that you've shared it publicly.")
   }
   if (!res.ok) throw new Error(`Couldn't read the file at this address (error ${res.status}).`)
   return res.text()
