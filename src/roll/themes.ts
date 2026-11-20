@@ -105,6 +105,39 @@ export const THEMES = {
 export type ThemeName = keyof typeof THEMES
 export const DEFAULT_THEME: ThemeName = 'studio'
 
+// ── The page's colors ──
+// With no theme named, the roll takes its surface from the page it sits in,
+// so a change to the page's colors reaches the roll with nothing rebuilt.
+// It reads the same custom properties the player's controls already use,
+// and the built-in theme behind them fills anything the page doesn't set:
+// studio on a dark page, paper on a light one, so the keyboard, bar lines
+// and playhead suit the page either way.
+
+/** Which page custom property each roll color comes from, when the page sets it. */
+export const PAGE_TOKENS = {
+  background: '--bg',
+  rowWhite: '--surface',
+  rowBlack: '--bg',
+  gridBeat: '--border',
+  text: '--text-muted',
+  textStrong: '--text-strong',
+} as const satisfies Partial<Record<keyof RollTheme, string>>
+
+/**
+ * The roll's colors from the page: `read` returns a custom property's value
+ * (empty when the page doesn't set it), as `getComputedStyle` does.
+ */
+export function pageTheme(read: (token: string) => string): RollTheme {
+  const bg = read('--bg').trim()
+  const lum = bg ? luminance(bg) : null
+  const t: RollTheme = { ...(lum !== null && lum > 0.5 ? THEMES.paper : THEMES[DEFAULT_THEME]) }
+  for (const [key, token] of Object.entries(PAGE_TOKENS) as Array<[keyof typeof PAGE_TOKENS, string]>) {
+    const v = read(token).trim()
+    if (v) t[key] = v
+  }
+  return t
+}
+
 export function resolveTheme(theme: ThemeName | RollTheme | undefined): RollTheme {
   if (!theme) return THEMES[DEFAULT_THEME]
   return typeof theme === 'string' ? (THEMES[theme] ?? THEMES[DEFAULT_THEME]) : theme

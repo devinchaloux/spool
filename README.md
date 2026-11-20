@@ -139,7 +139,7 @@ import { MeiPianoRoll } from 'mei-piano-roll'
 | `partSounds` | Starting sound for each part, by id, in score order; takes precedence over `sound` |
 | `samplesUrl` | Where the sampled instruments are hosted: a folder of FluidR3 `<instrument>-mp3.js` files, and optionally `<instrument>-loop.json` loop points so held notes sustain, ending in `/`; default the volunteer-run site smplr uses (no loop points) |
 | `onPartSoundsChange` | Called with every part's sound whenever the listener changes one, so a page can keep the choice |
-| `theme` | `"studio"` (default), `"paper"`, `"neon"`, `"ink"`, or your own colors |
+| `theme` | `"studio"`, `"paper"`, `"neon"`, `"ink"`, or your own colors; without it, the page's `--bg`, `--surface`, `--border`, `--text-muted` and `--text-strong`, followed live, with studio (paper on a light page) for anything the page doesn't set |
 | `accent` | Note color (the first part's, with several); without it, the page's `--accent` CSS variable, then the theme's |
 | `partColors` | One color per part, in score order; default the note color, then quick-pick colors |
 | `separateParts` | Start with each part on its own roll; default `false` |
