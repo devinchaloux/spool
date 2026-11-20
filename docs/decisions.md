@@ -46,6 +46,7 @@ of this file.
 
 - [Two layouts: the full player, with its controls under the roll, and the compact player for essays.](#2026-10-08-two-player-layouts-and-a-studio-page-for-the-demo)
 - [Four themes, and the note color follows the page's accent.](#2026-10-07-color-themes-and-notes-follow-the-pages-accent)
+- [With no theme named, the roll takes its surface from the page's colors.](#2026-11-20-with-no-theme-named-the-roll-takes-the-pages-colors)
 - [Eight quick-pick note colors, each with a strength for dark and light themes.](#2026-10-08-quick-pick-note-colors)
 - [A page can name the excerpt, and the roll opens fitted to its width, from 12 to 160 px per beat.](#2026-11-06-a-page-names-the-excerpt-and-the-roll-fits-its-width)
 - [A short excerpt fits a phone, and the title wraps.](#2026-11-07-a-short-excerpt-fits-a-phone-and-the-title-wraps)
@@ -243,6 +244,33 @@ else the theme.
 **Why.** Following the page's variable means a site's theme or accent switch
 recolors the notes with no wrapper code; the prop and themes cover pages that
 have no such variable.
+
+> *2026-11-20:* studio is no longer the default when no theme is named. See
+> the next entry.
+
+### 2026-11-20: with no theme named, the roll takes the page's colors
+
+**Choice.** When a page names no `theme`, the roll's surface comes from the
+page's custom properties, the ones the player's controls already read:
+`--bg` for the background and the black-key rows, `--surface` for the
+white-key rows, `--border` for the beat lines, and `--text-muted` and
+`--text-strong` for the labels (`pageTheme` and `PAGE_TOKENS` in
+`src/roll/themes.ts`). A built-in theme fills whatever the page doesn't set:
+studio on a dark page, paper on a light one, judged by `--bg`. The roll reads
+them again whenever `<html>`'s attributes change, as the note color does, so
+a page's light and dark switch reaches the roll too. A named theme keeps its
+own palette, and so do the demo, the embed and still images, which always
+name one.
+
+**Rejected.** *Keeping studio as the default:* a page that tunes its colors
+had to copy them into a custom theme by hand, and the copy drifted (studio's
+background was already a bluer black than the site it was drawn from).
+*Reading every roll color from the page:* pages have no token for a playhead
+or a keyboard, so those come from the built-in theme.
+
+**Why.** The roll should look like it belongs to the page it sits in, with
+nothing to rebuild when that page's colors change. A page with none of these
+properties gets studio, exactly as before.
 
 ### 2026-10-07: still images as SVG, made without a browser
 

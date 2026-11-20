@@ -6,7 +6,7 @@ import { tempoBeat, BEAT_NAMES } from "./tempo";
 import { Transport } from "../audio/transport";
 import { SOUNDS, DEFAULT_SOUND, SAMPLE_CREDIT, findSound } from "../audio/sounds";
 import { soundForPart } from "../audio/instruments";
-import { resolveTheme, shade, inkOn, THEMES, type RollTheme, type ThemeName } from "./themes";
+import { resolveTheme, pageTheme, shade, inkOn, THEMES, DEFAULT_THEME, type RollTheme, type ThemeName } from "./themes";
 import { partColors as defaultPartColors } from "./noteColors";
 import { layoutLanes, widestLaneRows, MIN_LANE_HEIGHT, MIN_ROW_HEIGHT, type Lane } from "./lanes";
 import { rollToSvg } from "../render/svg";
@@ -59,7 +59,12 @@ export interface MeiPianoRollProps {
   partColors?: string[];
   /** Start with each part on its own roll. Default false: all parts on one roll. */
   separateParts?: boolean;
-  /** Color theme for the roll: a preset name or your own colors. Default "studio". */
+  /**
+   * Color theme for the roll: a preset name or your own colors. Default: the
+   * page's own colors (`--bg`, `--surface`, `--border`, `--text-muted`,
+   * `--text-strong`), followed live, with "studio" (or "paper" on a light
+   * page) for anything the page doesn't set.
+   */
   theme?: ThemeName | RollTheme;
   /**
    * Starting sound for every part, by id (see SOUNDS). Default: each part's
@@ -167,7 +172,9 @@ const NOTATION_ZOOM = { min: 0.4, max: 3, step: 1.25 };
 // ---------------------------------------------------------------------------
 export default function MeiPianoRoll(props: MeiPianoRollProps) {
   const { src, meiText, height = 280 } = props;
-  const theme = resolveTheme(props.theme);
+  // With no theme named, the page's colors (read in the Colors effect below).
+  const [pageColors, setPageColors] = useState<RollTheme | null>(null);
+  const theme = props.theme ? resolveTheme(props.theme) : (pageColors ?? THEMES[DEFAULT_THEME]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scoreRef = useRef<MeiScore | null>(null);
@@ -284,20 +291,28 @@ export default function MeiPianoRoll(props: MeiPianoRollProps) {
   }, [view, notationLoad.status]);
 
   // ---- Colors ------------------------------------------------------------
-  // Follow the page's --accent live: a site's theme or accent switch changes
-  // attributes on <html>, so watching those is enough (no polling).
+  // Follow the page's --accent, and with no theme named its surface colors,
+  // live: a site's theme or accent switch changes attributes on <html>, so
+  // watching those is enough (no polling).
+  const usePageColors = !props.theme;
   useEffect(() => {
-    if (props.accent) return;
+    if (props.accent && !usePageColors) return;
     const read = () => {
       const el = rootRef.current;
-      const v = el ? getComputedStyle(el).getPropertyValue("--accent").trim() : "";
-      setPageAccent(v || null);
+      if (!el) return;
+      const style = getComputedStyle(el);
+      if (!props.accent) setPageAccent(style.getPropertyValue("--accent").trim() || null);
+      if (usePageColors) {
+        const next = pageTheme((token) => style.getPropertyValue(token));
+        // Keep the same object while nothing changed, so the roll doesn't redraw for nothing.
+        setPageColors((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+      }
     };
     read();
     const mo = new MutationObserver(read);
     mo.observe(document.documentElement, { attributes: true });
     return () => mo.disconnect();
-  }, [props.accent]);
+  }, [props.accent, usePageColors]);
   const noteColor = props.accent ?? pageAccent ?? theme.note;
   // A part the page gives no color (the bass line, say) takes its default.
   const colors = defaultPartColors(Math.max(parts.length, 1), theme, noteColor).map((c, i) => props.partColors?.[i] ?? c);
@@ -1179,9 +1194,8 @@ function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
 
 
 /* Chrome styling spends the SITE's tokens (with fallbacks for a host page
-   without them). The canvas interior keeps its own palette from the theme: a
-   piano roll is a DAW surface and reads as an instrument, not a page. Notes are
-   the one canvas element painted with the page's accent. */
+   without them). With no theme named, the canvas does too (pageTheme in
+   ./themes.ts); a named theme keeps its own palette. */
 const CSS = `
 .mpr-root {
   --mpr-panel: var(--surface, #121419); --mpr-panel2: var(--surface-2, #181b21); --mpr-border: var(--border, #23262d);
