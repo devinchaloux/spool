@@ -16,3 +16,6 @@ Text in the player and the demo reads like brief technical documentation:
 4. Inline text stays only when it prevents a mistake.
 5. One idea, one wording, everywhere it appears.
 6. Write sentences, not fragments spliced with dashes.
+7. Name who acts, in the active voice: "The roll leaves out notes without a
+   pitch", not "Notes without a pitch are left out". Use the Oxford comma
+   ("key, meter, and tempo").

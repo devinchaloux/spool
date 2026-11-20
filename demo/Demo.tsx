@@ -125,7 +125,7 @@ export default function Demo() {
               onChange={(e) => setLinkDraft(e.target.value)}
               placeholder="File address"
               aria-label="File address"
-              title="A GitHub or Dropbox link works, or any address that lets other sites read the file."
+              title="Paste a GitHub or Dropbox link, or any address that lets other sites read the file."
               autoFocus
             />
             <button className="studio-button" type="submit" disabled={loading.busy}>Open</button>
@@ -244,7 +244,7 @@ function Share({ address, title, settings, player, onAddress, busy }: {
   return (
     <div className="studio-share">
       <form className="studio-row" onSubmit={(e) => { e.preventDefault(); onAddress(draft) }}>
-        <label className="studio-label studio-grow" title="A GitHub or Dropbox link works, or any address that lets other sites read the file.">
+        <label className="studio-label studio-grow" title="Paste a GitHub or Dropbox link, or any address that lets other sites read the file.">
           File address
           <input className="studio-field studio-grow" type="url" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="https://…/your-file.mei" />
         </label>
@@ -321,7 +321,7 @@ function ImageMaker({ score, theme, partColors }: { score: MeiScore; theme: Them
           to
           <input className="studio-field studio-num" type="number" min={1} max={barCount} value={to} onChange={(e) => setToBar(num(e.target.value, barCount))} />
         </label>
-        <label className="studio-label" title="In pixels. PNGs save at twice this size.">
+        <label className="studio-label" title="In pixels. PNGs save at twice this size, so they stay sharp on high-resolution screens.">
           Size
           <input className="studio-field studio-num-wide" type="number" min={100} value={width} onChange={(e) => setWidth(num(e.target.value, 1200))} />
           ×
@@ -330,7 +330,7 @@ function ImageMaker({ score, theme, partColors }: { score: MeiScore; theme: Them
         {check('Keyboard', keyboard, setKeyboard)}
         {check('Bar numbers', barNumbers, setBarNumbers)}
         {check('Note names', noteLabels, setNoteLabels)}
-        {check('Background', background, setBackground, 'Off for a transparent background')}
+        {check('Background', background, setBackground, 'Turn off for a transparent background')}
         {score.parts.length > 1 && check('Separate parts', separateParts, setSeparateParts, 'Each part on its own roll')}
         <span className="studio-spacer" />
         <button className="studio-button" title="A vector image, sharp at any size" onClick={() => downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${name}.svg`)}>Save SVG</button>

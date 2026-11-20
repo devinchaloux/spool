@@ -55,7 +55,7 @@ export function withBassLine(score: MeiScore): MeiScore {
     parts: [...score.parts, bass],
     notes: [...score.notes, ...notes],
     warnings: unread
-      ? [...score.warnings, { code: 'chord-unread', message: "Some chord symbols couldn't be read, so the bass line rests under them.", count: unread }]
+      ? [...score.warnings, { code: 'chord-unread', message: "Spool couldn't read some chord symbols, so the bass line rests under them.", count: unread }]
       : score.warnings,
   }
 }
