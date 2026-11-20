@@ -1,11 +1,11 @@
 // ── The roll's zoom ──
 
-// The roll's zoom range, in px per quarter-note beat. The floor is low so a
-// short excerpt can fit a phone's width; the buttons reach it too.
-export const ROLL_ZOOM = { min: 12, max: 160 }
-// A file that would need less than this to fit opens here and scrolls. It
-// keeps a long file readable at first sight, as the floor did before phones.
-export const ROLL_OPEN_MIN = 28
+// The roll's zoom range, in px per quarter-note beat. The floor keeps notes
+// readable: below it, a phone-width roll crushes bars together (2026-11-20,
+// which raised it back from 12).
+export const ROLL_ZOOM = { min: 28, max: 160 }
+// A file that would need less than this to fit opens here and scrolls.
+export const ROLL_OPEN_MIN = ROLL_ZOOM.min
 
 /**
  * The zoom a roll opens at when the page gives none: the whole file fits

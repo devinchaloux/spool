@@ -49,7 +49,7 @@ of this file.
 - [With no theme named, the roll takes its surface from the page's colors.](#2026-11-20-with-no-theme-named-the-roll-takes-the-pages-colors)
 - [Eight quick-pick note colors, each with a strength for dark and light themes.](#2026-10-08-quick-pick-note-colors)
 - [A page can name the excerpt, and the roll opens fitted to its width, from 12 to 160 px per beat.](#2026-11-06-a-page-names-the-excerpt-and-the-roll-fits-its-width)
-- [A short excerpt fits a phone, and the title wraps.](#2026-11-07-a-short-excerpt-fits-a-phone-and-the-title-wraps)
+- [A narrow roll's title wraps; the roll never zooms below 28 px per beat to fit a phone.](#2026-11-20-the-roll-no-longer-shrinks-to-fit-a-phone)
 - [Tempo is shown in the beat the meter names; inside, it stays in quarter notes.](#2026-10-10-tempo-is-shown-in-the-beat-the-meter-names)
 - [Text on the roll meets WCAG AA against the worst background it is drawn on.](#2026-10-24-text-contrast-as-the-site-holds-it)
 - [The notation view is always on paper, lit and scrolled by the same playhead, and keeps its own zoom.](#2026-10-17-verovio-draws-notation-it-doesnt-read-the-timing)
@@ -966,6 +966,21 @@ phone it cut a long title to a few letters.
 
 **Why.** On a 390 px phone the roll showed two and a half of an excerpt's
 four bars, with a long title cut short.
+
+> *2026-11-20:* the zoom half is reversed. See the next entry.
+
+### 2026-11-20: the roll no longer shrinks to fit a phone
+
+**Choice.** The zoom's floor goes back to 28 px per beat. A roll on a phone
+opens at 28 and scrolls, as a long file always has, and the zoom buttons stop
+there too. The title still wraps on a narrow roll, as the entry above set.
+
+**Rejected.** *Keeping 12 as a floor the buttons can reach while the roll
+opens at 28:* nothing on a phone needs a zoom that crushed.
+
+**Why.** At 12 to 14 px per beat a four-bar excerpt fit a phone's width, but
+it was crunched too tightly to read. Scrolling a readable roll beats seeing
+all of an unreadable one.
 
 ### 2026-11-07: the lint tools use a patched minimatch
 

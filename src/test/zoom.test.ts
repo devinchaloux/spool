@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { fitZoom, ROLL_OPEN_MIN, ROLL_ZOOM } from '../roll/zoom'
 
 describe('fitZoom', () => {
-  it('fits a four-bar excerpt to a phone-width roll', () => {
+  it('opens a four-bar excerpt on a phone at a readable zoom, to scroll', () => {
     // 16 beats in 238 px: the width of a roll on a 390 px phone screen.
-    expect(fitZoom(238, 16)).toBe(14)
+    // Fitting would take 14 px per beat, too crushed to read.
+    expect(fitZoom(238, 16)).toBe(ROLL_OPEN_MIN)
   })
   it('fits a short file to a wide roll, up to the most zoom', () => {
     expect(fitZoom(800, 16)).toBe(50)
