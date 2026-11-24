@@ -71,7 +71,7 @@ of this file.
 - [Test files are fetched, never committed.](#2026-10-07-test-files-are-fetched-never-committed)
 - [The stress test gives each file its own jsdom window.](#2026-10-07-the-stress-test-gives-each-file-its-own-simulated-browser)
 - [React 18+ as a peer dependency, Vite, TypeScript 5.9, Vitest and ESLint.](#2026-10-07-the-tools-matching-the-maintainers-other-projects)
-- [The lint tools use a patched minimatch until ESLint takes up version 11.](#2026-11-07-the-lint-tools-use-a-patched-minimatch)
+- [ESLint 10.15 and typescript-eslint 8.74 or later, which take minimatch 11 themselves; no override.](#2026-11-24-the-lint-tools-take-minimatch-11-themselves)
 
 ---
 
@@ -993,6 +993,21 @@ and typescript-eslint's (8.72) still ask for minimatch 10.
 **Why.** minimatch 10 has a denial-of-service advisory fixed only in 11.0.1.
 Lint and the tests pass with the override. Remove it once ESLint's own range
 reaches 11.
+
+> **2026-11-24:** replaced by the entry below. ESLint's range reached 11, so
+> the override is gone.
+
+### 2026-11-24: the lint tools take minimatch 11 themselves
+
+**Choice.** ESLint 10.15 and typescript-eslint 8.74 or later, with no
+`overrides` block. Both ask for minimatch 11 in these releases.
+
+**Rejected.** *Keeping the override:* it would force a version the tools now
+choose for themselves, and hide the next time they change it.
+
+**Why.** It ends the 2026-11-07 workaround for minimatch 10's
+denial-of-service advisory. Lint covers the same 51 files with no findings;
+the tests and the build pass.
 
 ### 2026-11-07: looping has no gap at the seam
 
